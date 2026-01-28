@@ -19,23 +19,23 @@
 
 | ID  | Description                                                                                             | SP     | HEAD    | Prio | Status |
 |:--- |:------------------------------------------------------------------------------------------------------- |:------ |:------ |:---- |:------ |
-| 1   | Als Benutzer möchte ich eine übersichtliche Liste meiner Einkaufsartikel sehen.                             | 3      | BAYF     | MH   | Open   |
-| 2   | Als Benutzer möchte ich neue Artikel mit Namen und Menge schnell hinzufügen können.                         | 3      | STEE     | MH   | Open   |
+| 1   | Als Benutzer möchte ich eine übersichtliche Liste meiner Einkaufsartikel sehen.                             | 4      | BAYF     | MH   | LINKs!!   |
+| 2   | Als Benutzer möchte ich neue Artikel mit Namen und Menge schnell hinzufügen können.                         | 4      | STEE     | MH   | Open   |
 | 3   | Als Benutzer möchte ich, dass meine Daten beim Schließen der App gespeichert bleiben.                       | 4      | STEE   | MH   | Open   |
 | 4   | Als Benutzer möchte ich Artikel aus meiner Liste löschen, wenn ich sie nicht mehr brauche.                  | 4      | STEE    | MH   | Open   |
 | 5   | Als Benutzer möchte ich ein stabiles Backend haben, das meine Daten sicher empfängt.                        | 4      | BAYF   | MH   | Open   |
 | 6   | Als Benutzer möchte ich über eine Schnittstelle meine Daten an den Server senden können.                    | 4      | BAYF   | MH   | Open   |
-| 7   | Als Benutzer möchte ich, dass meine Daten in einer Cloud-Datenbank persistent liegen.                       | 3      | BACK   | MH   | Open   |
+| 7   | Als Benutzer möchte ich, dass meine Daten in einer Cloud-Datenbank persistent liegen.                       | 3      | ---   | MH   | Open   |
 | 8   | Als Benutzer möchte ich, dass die App automatisch Verbindung zum Server aufnimmt.                           | 3      | JEIJ   | MH   | Open   |
-| 9   | Als Benutzer möchte ich, dass Änderungen sofort nach dem Tippen hochgeladen werden.                         | 4      | SYNC   | MH   | Open   |
+| 9   | Als Benutzer möchte ich, dass Änderungen sofort nach dem Tippen hochgeladen werden.                         | 4      | BAYF   | MH   | Open   |
 | 10  | Als Benutzer möchte ich beim Start die aktuellsten Daten vom Server erhalten.                               | 4      | JEIJ   | MH   | Open   |
 | 11  | Als Benutzer möchte ich ein lauffähiges System in einer Docker-Umgebung nutzen.                             | 3      | MAUA | MH   | Open   |
 | 12  | Als Benutzer möchte ich gewarnt werden, wenn ich gerade keine Internetverbindung habe.                      | 3      | JEIJ   | MH   | Open   |
 | 13  | Als Benutzer möchte ich offline weiterarbeiten und meine Änderungen lokal zwischenspeichern.                | 4      | STEE   | SH   | Open   |
-| 14  | Als Benutzer möchte ich, dass meine Offline-Daten automatisch synchronisieren, sobald ich wieder Netz habe. | 4      | ARCH   | SH   | Open   |
+| 14  | Als Benutzer möchte ich, dass meine Offline-Daten automatisch synchronisieren, sobald ich wieder Netz habe. | 4      | ---   | SH   | Open   |
 | 15  | Als Benutzer möchte ich, dass jeder Artikel einen Zeitstempel hat, um die aktuellste Version zu bestimmen.  | 3      | STEE   | SH   | Open   |
 | 16  | Als Benutzer möchte ich, dass bei gleichzeitiger Änderung immer die neueste Version gewinnt.                | 3      | STEE   | SH   | Open   |
-| 17  | Als Benutzer möchte ich, dass der Server widersprüchliche Datenpakete korrekt auflöst.                      | 4      | BACK   | SH   | Open   |
+| 17  | Als Benutzer möchte ich, dass der Server widersprüchliche Datenpakete korrekt auflöst.                      | 4      | ---   | SH   | Open   |
 | 18  | Als Benutzer möchte ich einen Einladungscode generieren, um meine Liste zu teilen.                          | 4      | MAUA   | SH   | Open   |
 | 19  | Als Benutzer möchte ich einen Code eingeben, um einer Liste beizutreten.                                    | 4      | MAUA    | SH   | Open   |
 | 20  | Als Benutzer möchte ich durch Symbole sehen, ob meine Artikel bereits synchronisiert sind.                  | 3      | JEIJ     | SH   | Open   |
@@ -51,4 +51,4 @@
 Stepanek: 24 SP \
 Maurer: 24 SP \
 Bayerl: 24 SP \
-Jeindl: 24 SP \
+Jeindl: 24 SP 
