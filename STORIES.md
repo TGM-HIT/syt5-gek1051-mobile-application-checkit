@@ -19,31 +19,32 @@
 
 | ID  | Description                                                                                             | SP     | HEAD    | Prio | Status |
 |:--- |:------------------------------------------------------------------------------------------------------- |:------ |:------ |:---- |:------ |
-| 1   | Als Benutzer möchte ich eine übersichtliche Liste meiner Einkaufsartikel sehen.                             | 3      | UI     | MH   | Open   |
-| 2   | Als Benutzer möchte ich neue Artikel mit Namen und Menge schnell hinzufügen können.                         | 3      | UI     | MH   | Open   |
-| 3   | Als Benutzer möchte ich, dass meine Daten beim Schließen der App gespeichert bleiben.                       | 4      | ARCH   | MH   | Open   |
-| 4   | Als Benutzer möchte ich Artikel aus meiner Liste löschen, wenn ich sie nicht mehr brauche.                  | 4      | DEV    | MH   | Open   |
-| 5   | Als Benutzer möchte ich ein stabiles Backend haben, das meine Daten sicher empfängt.                        | 4      | BACK   | MH   | Open   |
-| 6   | Als Benutzer möchte ich über eine Schnittstelle meine Daten an den Server senden können.                    | 4      | BACK   | MH   | Open   |
+| 1   | Als Benutzer möchte ich eine übersichtliche Liste meiner Einkaufsartikel sehen.                             | 3      | BAYF     | MH   | Open   |
+| 2   | Als Benutzer möchte ich neue Artikel mit Namen und Menge schnell hinzufügen können.                         | 3      | STEE     | MH   | Open   |
+| 3   | Als Benutzer möchte ich, dass meine Daten beim Schließen der App gespeichert bleiben.                       | 4      | STEE   | MH   | Open   |
+| 4   | Als Benutzer möchte ich Artikel aus meiner Liste löschen, wenn ich sie nicht mehr brauche.                  | 4      | STEE    | MH   | Open   |
+| 5   | Als Benutzer möchte ich ein stabiles Backend haben, das meine Daten sicher empfängt.                        | 4      | BAYF   | MH   | Open   |
+| 6   | Als Benutzer möchte ich über eine Schnittstelle meine Daten an den Server senden können.                    | 4      | BAYF   | MH   | Open   |
 | 7   | Als Benutzer möchte ich, dass meine Daten in einer Cloud-Datenbank persistent liegen.                       | 3      | BACK   | MH   | Open   |
-| 8   | Als Benutzer möchte ich, dass die App automatisch Verbindung zum Server aufnimmt.                           | 3      | SYNC   | MH   | Open   |
+| 8   | Als Benutzer möchte ich, dass die App automatisch Verbindung zum Server aufnimmt.                           | 3      | JEIJ   | MH   | Open   |
 | 9   | Als Benutzer möchte ich, dass Änderungen sofort nach dem Tippen hochgeladen werden.                         | 4      | SYNC   | MH   | Open   |
-| 10  | Als Benutzer möchte ich beim Start die aktuellsten Daten vom Server erhalten.                               | 4      | SYNC   | MH   | Open   |
-| 11  | Als Benutzer möchte ich ein lauffähiges System in einer Docker-Umgebung nutzen.                             | 3      | DEPLOY | MH   | Open   |
-| 12  | Als Benutzer möchte ich gewarnt werden, wenn ich gerade keine Internetverbindung habe.                      | 3      | ARCH   | MH   | Open   |
-| 13  | Als Benutzer möchte ich offline weiterarbeiten und meine Änderungen lokal zwischenspeichern.                | 4      | SYNC   | SH   | Open   |
+| 10  | Als Benutzer möchte ich beim Start die aktuellsten Daten vom Server erhalten.                               | 4      | JEIJ   | MH   | Open   |
+| 11  | Als Benutzer möchte ich ein lauffähiges System in einer Docker-Umgebung nutzen.                             | 3      | MAUA | MH   | Open   |
+| 12  | Als Benutzer möchte ich gewarnt werden, wenn ich gerade keine Internetverbindung habe.                      | 3      | JEIJ   | MH   | Open   |
+| 13  | Als Benutzer möchte ich offline weiterarbeiten und meine Änderungen lokal zwischenspeichern.                | 4      | STEE   | SH   | Open   |
 | 14  | Als Benutzer möchte ich, dass meine Offline-Daten automatisch synchronisieren, sobald ich wieder Netz habe. | 4      | ARCH   | SH   | Open   |
-| 15  | Als Benutzer möchte ich, dass jeder Artikel einen Zeitstempel hat, um die aktuellste Version zu bestimmen.  | 3      | BACK   | SH   | Open   |
+| 15  | Als Benutzer möchte ich, dass jeder Artikel einen Zeitstempel hat, um die aktuellste Version zu bestimmen.  | 3      | STEE   | SH   | Open   |
 | 16  | Als Benutzer möchte ich, dass bei gleichzeitiger Änderung immer die neueste Version gewinnt.                | 4      | SYNC   | SH   | Open   |
 | 17  | Als Benutzer möchte ich, dass der Server widersprüchliche Datenpakete korrekt auflöst.                      | 4      | BACK   | SH   | Open   |
-| 18  | Als Benutzer möchte ich einen Einladungscode generieren, um meine Liste zu teilen.                          | 4      | BACK   | SH   | Open   |
-| 19  | Als Benutzer möchte ich einen Code eingeben, um einer Liste beizutreten.                                    | 4      | DEV    | SH   | Open   |
-| 20  | Als Benutzer möchte ich durch Symbole sehen, ob meine Artikel bereits synchronisiert sind.                  | 3      | UI     | SH   | Open   |
-| 21  | Als Benutzer möchte ich bestehende Artikel in der Liste nachträglich bearbeiten können.                     | 4      | DEV    | SH   | Open   |
-| 22  | Als Benutzer möchte ich meine Artikel in Kategorien einteilen, um sie besser zu finden.                     | 4      | DEV    | SH   | Open   |
-| 23  | Als Benutzer möchte ich, dass gelöschte Artikel auch auf den Geräten meiner Partner verschwinden.           | 4      | ARCH   | SH   | Open   |
-| 24  | Als Benutzer möchte ich Fehlermeldungen erhalten, wenn eine Synchronisation fehlschlägt.                    | 3      | UI     | SH   | Open   |
-| 25  | Als Benutzer möchte ich die App über eine öffentliche URL erreichen können.                                 | 4      | DEPLOY | SH   | Open   |
+| 18  | Als Benutzer möchte ich einen Einladungscode generieren, um meine Liste zu teilen.                          | 4      | MAUA   | SH   | Open   |
+| 19  | Als Benutzer möchte ich einen Code eingeben, um einer Liste beizutreten.                                    | 4      | MAUA    | SH   | Open   |
+| 20  | Als Benutzer möchte ich durch Symbole sehen, ob meine Artikel bereits synchronisiert sind.                  | 3      | JEIJ     | SH   | Open   |
+| 21  | Als Benutzer möchte ich bestehende Artikel in der Liste nachträglich bearbeiten können.                     | 4      | BAYF    | SH   | Open   |
+| 22  | Als Benutzer möchte ich meine Artikel in Kategorien einteilen, um sie besser zu finden.                     | 4      | BAYF    | SH   | Open   |
+| 23  | Als Benutzer möchte ich, dass gelöschte Artikel auch auf den Geräten meiner Partner verschwinden.           | 4      | JEIJ   | SH   | Open   |
+| 24  | Als Benutzer möchte ich Fehlermeldungen erhalten, wenn eine Synchronisation fehlschlägt.                    | 3      | JEIJ     | SH   | Open   |
+| 25  | Als Benutzer möchte ich die App über eine öffentliche URL erreichen können.                                 | 4      | STEE | SH   | Open   |
+| 26 | Als Benutzer möchte ich das meine Userdaten nur verschlüsselt abgespeichert werden.                          | 4      | JEIJ | SH   | Open | 
 |     | **Summe**                                                                                               | **96** |        |      |        |
 
 ## Zusammenfassung
