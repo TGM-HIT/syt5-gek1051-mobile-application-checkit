@@ -39,6 +39,12 @@
 | 24  | Als Benutzer möchte ich Fehlermeldungen erhalten, wenn eine Synchronisation fehlschlägt, um über meine falsche Eingabe informiert zu werden.                                | 3      | JEIJ | SH   | Open    |
 | 25  | Als Benutzer möchte ich die App über eine öffentliche URL erreichen können, um sie über einen Browser erreichen zu können.                                                  | 3      | STEE | SH   | Open    |
 | 26  | Als Benutzer möchte ich das meine Userdaten nur verschlüsselt abgespeichert werden, damit meine Daten sicher sind.                                                          | 4      | JEIJ | SH   | Open    |
+|     | Als Benutzer möchte ich anhand eines Bildes vom Preisschild einen Artikel hinzufügen.                                                                                       |        |      |      |         |
+|     | Als Techincal Architect will ich einen Technical Report haben, welche die verwendeten Technologien den Teammitgliedern näher bringt, damit sie effizient arbeiten können.   |        | AMAU | MH   |         |
+|     | Als Product Owner möchte ich eine übersichtliche Dokumentation und Issue verwaltung sicherstellen, um den Erfolg des Projekts zu garantieren.                               |        | STEE | MH   |         |
+|     | Als Benutzer möchte ich Artikel anhand von gescannten Rezepten hinzufügen können, damit ich mir die Manuelle arbeit erspare.                                                |        | BAYF |      |         |
+|     | Als Benutzer möchte ich ein private Lite erstellen können, damit ich anonym Einkaufen gehen kann.                                                                           |        |      |      |         |
+|     |                                                                                                                                                                             |        |      |      |         |
 |     | **Summe**                                                                                                                                                                   | **96** |      |      |         |
 
 ## Zusammenfassung
