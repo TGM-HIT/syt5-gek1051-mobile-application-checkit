@@ -19,8 +19,8 @@
 
 | ID  | Description                                                                                                 | SP     | HEAD | Prio | Status  |
 |:--- |:----------------------------------------------------------------------------------------------------------- |:------ |:---- |:---- |:------- |
-| 1   | Als Benutzer möchte ich eine übersichtliche Liste meiner Einkaufsartikel sehen.                             | 4      | BAYF | MH   | LINKs!! |
-| 2   | Als Benutzer möchte ich neue Artikel mit Namen und Menge schnell hinzufügen können.                         | 4      | STEE | MH   | Open    |
+| 1   | Als Benutzer möchte ich eine Einkaufsliste anlegen können, um eine übersichtliche Liste meiner Einkaufsartikel zu sehen.                             | 4      | BAYF | MH   | LINKs!! |
+| 2   | Als Benutzer möchte ich neue Artikel zu meiner Liste hinzufügen können und auch in der Liste danach Suchen.                        | 4      | STEE | MH   | Open    |
 | 3   | Als Benutzer möchte ich, dass meine Daten beim Schließen der App gespeichert bleiben.                       | 4      | STEE | MH   | Open    |
 | 4   | Als Benutzer möchte ich Artikel aus meiner Liste löschen, wenn ich sie nicht mehr brauche.                  | 4      | STEE | MH   | Open    |
 | 5   | Als Benutzer möchte ich ein stabiles Backend haben, das meine Daten sicher empfängt.                        | 4      | BAYF | MH   | Open    |
