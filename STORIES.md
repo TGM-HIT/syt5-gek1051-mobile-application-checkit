@@ -21,20 +21,18 @@
 |:--- |:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |:------ |:---- |:---- |:------- |
 | 1   | Als Benutzer möchte ich eine Einkaufsliste anlegen können, um eine übersichtliche Liste meiner Einkaufsartikel zu sehen.                                                    | 8      | BAYF | MH   | LINKs!! |
 | 2   | Als Benutzer möchte ich neue Artikel zu meiner Liste hinzufügen können und auch in der Liste danach Suchen.                                                                 | 5      | STEE | MH   | Open    |
-| 3   | Als Benutzer möchte ich, dass meine Daten beim Schließen der App gespeichert bleiben, um sie beim nächsten öffnen zu behalten.                                              | 3      | --- | MH   | Open    |
-| 4   | Als Benutzer möchte ich Artikel aus meiner Übersicht entfernen, wenn ich sie nicht mehr brauche, um die Liste übersichtlich zu halten aber sie leicht wiederherstellen zu können.                                  | 3      | --- | MH   | Open    |
-| 8   | Als Benutzer möchte ich, dass die App automatisch Verbindung zum Server aufnimmt, um beim Starten der App die aktuellsten Daten vom Server zu erhalten.                     | 5     | JEIJ | MH   | Open    |
+| 3   | Als Benutzer möchte ich, dass meine Daten beim Schließen der App gespeichert bleiben, um sie beim nächsten öffnen zu behalten.                                              | 3      | MAUA | MH   | Open    |
+| 4   | Als Benutzer möchte ich Artikel aus meiner Übersicht entfernen, wenn ich sie nicht mehr brauche, um die Liste übersichtlich zu halten aber sie leicht wiederherstellen zu können.                                  | 3      | JEIJ| MH   | Open    |
 | 9   | Als Benutzer möchte ich, dass Änderungen sofort nach dem Tippen hochgeladen werden, um die aktuellen Änderungen zu sehen.                                                   | 3      | BAYF | MH   | Open    |
 | 11  | Als Benutzer möchte ich ein lauffähiges System in einer Docker-Umgebung nutzen, um es auch lokal zu verwenden.                                                              | 5      | MAUA | MH   | Open    |
-| 12  | Als Benutzer möchte ich gewarnt werden, wenn ich gerade keine Internetverbindung habe, um darauf aufmerksam zu werden, dass man vielleicht nicht die aktuellsten Daten hat. | 5      | JEIJ | MH   | Open    |
+| 12  | Als Benutzer möchte ich gewarnt werden, wenn ich gerade keine Internetverbindung habe, um darauf aufmerksam zu werden, dass man vielleicht nicht die aktuellsten Daten hat. | 3      | JEIJ | MH   | Open    |
 | 13  | Als Benutzer möchte ich offline weiterarbeiten und meine Änderungen lokal zwischenspeichern.                                                                                | 5      | MAUA | MH   | Open    |
 | 14  | Als Benutzer möchte ich, dass meine Offline-Daten automatisch synchronisieren, sobald ich wieder Netz habe, um Konflikte zu vermeiden.                                      | 8      | MAUA | MH   | Open    |
-| 15  | Als Benutzer möchte ich, dass jeder Artikel einen Zeitstempel hat, um die aktuellste Version zu bestimmen.                                                                  | 3      | STEE | SH   | Open    |
-| 18  | Als Benutzer möchte ich einen Einladungscode generieren, um meine Liste zu teilen.                                                                                          | 3      | MAUA | SH   | Open    |
-| 19  | Als Benutzer möchte ich einen Code eingeben, um einer Liste beizutreten.                                                                                                    | 3      | MAUA | SH   | Open    |
+| 18  | Als Benutzer möchte ich einen Einladungscode generieren, um meine Liste zu teilen.                                                                                          | 3      | BAYF| SH   | Open    |
+| 19  | Als Benutzer möchte ich einen Code eingeben, um einer Liste beizutreten.                                                                                                    | 3      | BAYF | SH   | Open    |
 | 20  | Als Benutzer möchte ich durch Symbole sehen, ob meine Artikel bereits synchronisiert sind, um den Überblick zu behalten.                                                    | 3      | JEIJ | SH   | Open    |
-| 21  | Als Benutzer möchte ich bestehende Artikel in der Liste nachträglich bearbeiten können, um Änderungen umzusetzen.                                                           | 3      | STEE | SH   | Open    |
-| 22  | Als Benutzer möchte ich meine Artikel in Kategorien einteilen, um sie besser zu finden.                                                                                     | 4      | BAYF | MH   | Open    |
+| 21  | Als Benutzer möchte ich bestehende Artikel in der Liste nachträglich bearbeiten können, um Änderungen umzusetzen und jeder Artikel soll einen Zeitstempel besitzen, um Änderungen erkennen zu können                                                           | 5 | STEE | SH   | Open    |
+| 22  | Als Benutzer möchte ich meine Artikel in Kategorien einteilen, um sie besser zu finden.                                                                                     | 3      | BAYF | MH   | Open    |
 | 23  | Als Benutzer möchte ich, dass gelöschte Artikel auch auf den Geräten meiner Partner verschwinden, um die Liste übersichtlich zu halten.                                     | 5      | JEIJ | SH   | Open    |
 | 24  | Als Benutzer möchte ich Fehlermeldungen erhalten, wenn eine Synchronisation fehlschlägt, um über meine falsche Eingabe informiert zu werden.                                | 3      | JEIJ | SH   | Open    |
 | 25  | Als Benutzer möchte ich die App über eine öffentliche URL erreichen können, um sie über einen Browser erreichen zu können.                                                  | 3      | STEE | SH   | Open    |
@@ -44,7 +42,7 @@
 |     | Als Product Owner möchte ich eine übersichtliche Dokumentation und Issue verwaltung sicherstellen, um den Erfolg des Projekts zu garantieren.                               |     5   | STEE | MH   |         |
 |     | Als Benutzer möchte ich Artikel anhand von gescannten Rezepten hinzufügen können, damit ich mir die manuelle Arbeit erspare.                                                |      5  | BAYF |      |         |
 |     | Als Benutzer möchte ich ein private Lite erstellen können, damit ich anonym Einkaufen gehen kann.                                                                           |      5  | STEE     |      |         |
-|     |                                                                                                                                                                             |        |      |      |         |
+|     |   EK Andreas                                                                                                                                                                          |      5  |    MAUA  |      |         |
 |     | **Summe**                                                                                                                                                                   | **96** |      |      |         |
 
 ## Zusammenfassung
