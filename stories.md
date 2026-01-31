@@ -32,13 +32,13 @@
 | 19  | Als Benutzer möchte ich das meine Userdaten nur verschlüsselt abgespeichert werden, damit meine Daten sicher sind.                                                                                                                     | 3       | JEIJ | SH     | [Status]()                                                                                                    |
 | 20  | Als Benutzer möchte ich anhand eines Bildes vom Preisschild einen Artikel hinzufügen.                                                                                                                                                  | 5       | JEIJ | SH/N2H | [Status]()                                                                                                    |
 | 21  | Als Benutzer möchte ich Artikel anhand von gescannten Rezepten hinzufügen können, damit ich mir die manuelle Arbeit erspare.                                                                                                           | 5       | BAYF | NH     | [Status]()                                                                                                    |
-| 22  | Als Benutzer möchte ich ein private Lite erstellen können, damit ich anonym Einkaufen gehen kann.                                                                                                                                      | 5       | STEE | NH     | [Status]()                                                                                                    |
+| 22  | Als Benutzer möchte ich ein private Liste erstellen können, damit ich anonym Einkaufen gehen kann.                                                                                                                                      | 5       | STEE | NH     | [Status]()                                                                                                    |
 | 23  | Als Benutzer möchte ich mich authentifizieren können, damit ich meine erstellten Listen sehe.                                                                                                                                          | 5       | MAUA | NH     | [Status]()                                                                                                    |
 |     | **Summe**                                                                                                                                                                                                                              | **100** |      |        |                                                                                                               |
 
 ## Zusammenfassung
 
-Stepanek: 25 SP
-Maurer: 25 SP
-Bayerl: 25 SP
+Stepanek: 25 SP \
+Maurer: 25 SP \
+Bayerl: 25 SP \
 Jeindl: 25 SP 
