@@ -23,7 +23,7 @@
 | 2   | Als Benutzer möchte ich neue Artikel zu meiner Liste hinzufügen können und auch in der Liste danach Suchen.                                                                 | 5      | STEE | MH   | Open    |
 | 3   | Als Benutzer möchte ich, dass meine Daten beim Schließen der App gespeichert bleiben, um sie beim nächsten öffnen zu behalten.                                              | 3      | --- | MH   | Open    |
 | 4   | Als Benutzer möchte ich Artikel aus meiner Übersicht entfernen, wenn ich sie nicht mehr brauche, um die Liste übersichtlich zu halten aber sie leicht wiederherstellen zu können.                                  | 3      | --- | MH   | Open    |
-| 8   | Als Benutzer möchte ich, dass die App automatisch Verbindung zum Server aufnimmt, um beim Starten der App die aktuellsten Daten vom Server zu erhalten.                     | 8      | JEIJ | MH   | Open    |
+| 8   | Als Benutzer möchte ich, dass die App automatisch Verbindung zum Server aufnimmt, um beim Starten der App die aktuellsten Daten vom Server zu erhalten.                     | 5     | JEIJ | MH   | Open    |
 | 9   | Als Benutzer möchte ich, dass Änderungen sofort nach dem Tippen hochgeladen werden, um die aktuellen Änderungen zu sehen.                                                   | 3      | BAYF | MH   | Open    |
 | 11  | Als Benutzer möchte ich ein lauffähiges System in einer Docker-Umgebung nutzen, um es auch lokal zu verwenden.                                                              | 5      | MAUA | MH   | Open    |
 | 12  | Als Benutzer möchte ich gewarnt werden, wenn ich gerade keine Internetverbindung habe, um darauf aufmerksam zu werden, dass man vielleicht nicht die aktuellsten Daten hat. | 5      | JEIJ | MH   | Open    |
@@ -38,7 +38,7 @@
 | 23  | Als Benutzer möchte ich, dass gelöschte Artikel auch auf den Geräten meiner Partner verschwinden, um die Liste übersichtlich zu halten.                                     | 5      | JEIJ | SH   | Open    |
 | 24  | Als Benutzer möchte ich Fehlermeldungen erhalten, wenn eine Synchronisation fehlschlägt, um über meine falsche Eingabe informiert zu werden.                                | 3      | JEIJ | SH   | Open    |
 | 25  | Als Benutzer möchte ich die App über eine öffentliche URL erreichen können, um sie über einen Browser erreichen zu können.                                                  | 3      | STEE | SH   | Open    |
-| 26  | Als Benutzer möchte ich das meine Userdaten nur verschlüsselt abgespeichert werden, damit meine Daten sicher sind.                                                          | 4      | JEIJ | SH   | Open    |
+| 26  | Als Benutzer möchte ich das meine Userdaten nur verschlüsselt abgespeichert werden, damit meine Daten sicher sind.                                                          | 3      | JEIJ | SH   | Open    |
 |     | Als Benutzer möchte ich anhand eines Bildes vom Preisschild einen Artikel hinzufügen.                                                                                       |     5   |      | SH     |         |
 |     | Als Techincal Architect will ich einen Technical Report haben, welche die verwendeten Technologien den Teammitgliedern näher bringt, damit sie effizient arbeiten können.   |      5  | AMAU | MH   |         |
 |     | Als Product Owner möchte ich eine übersichtliche Dokumentation und Issue verwaltung sicherstellen, um den Erfolg des Projekts zu garantieren.                               |     5   | STEE | MH   |         |
