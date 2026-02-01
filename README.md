@@ -15,9 +15,7 @@ Check IT ist eine praktische Einkaufsliste, bei der man sich keine Sorgen um Fun
 
 Kopiere das `env-example` zu einem `.env` und ersätze **alle** mit eckigen Klammern markierten Platzhalter, wie `[PASSWORD]` mit sinnvollen Werten.
 
-**⚠️ Warnung**
-
-Das Passwort darf nicht zu einfach sein (z.B.: 1234), da sonst, je nach Datenbank und Version, der Container nicht starten könnte.
+⚠️ Das Passwort darf nicht zu einfach sein (z.B.: 1234), da sonst, je nach Datenbank und Version, der Container nicht starten könnte.
 
 **Windows**
 
