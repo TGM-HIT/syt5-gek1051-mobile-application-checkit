@@ -1,6 +1,13 @@
 # ☑️ Check IT
 
-Check IT ist eine praktische Einkaufsliste, bei der man sich keine Sorgen um Funklöcher im Supermarkt machen muss. Man kann alles ganz normal abhaken, während man offline ist, und sobald man wieder Netz hat, synchronisiert sich die Liste automatisch. Man sieht auch direkt, wer was wann erledigt hat. Falls mal zwei Leute gleichzeitig denselben Artikel bearbeiten, zeigt die App bei einem Konflikt einfach beide Namen an, damit nichts untergeht. Geplant ist außerdem, das Offline-Thema später vielleicht über BitChat zu lösen. Teilen lässt sich die Liste ganz unkompliziert über eigene URLs.
+Check IT ist eine praktische Einkaufsliste, bei der man sich keine Sorgen um
+Funklöcher im Supermarkt machen muss. Man kann alles ganz normal abhaken,
+während man offline ist, und sobald man wieder Netz hat, synchronisiert sich die
+Liste automatisch. Man sieht auch direkt, wer was wann erledigt hat. Falls mal
+zwei Leute gleichzeitig denselben Artikel bearbeiten, zeigt die App bei einem
+Konflikt einfach beide Namen an, damit nichts untergeht. Geplant ist außerdem,
+das Offline-Thema später vielleicht über BitChat zu lösen. Teilen lässt sich die
+Liste ganz unkompliziert über eigene URLs.
 
 ## Rollen
 
@@ -13,9 +20,12 @@ Check IT ist eine praktische Einkaufsliste, bei der man sich keine Sorgen um Fun
 
 ## Verwendung
 
-Kopiere das `env-example` zu einem `.env` und ersätze **alle** mit eckigen Klammern markierten Platzhalter, wie `[PASSWORD]` mit sinnvollen Werten.
+Kopiere das `env-example` zu einem `.env` und ersätze **alle** mit eckigen
+Klammern markierten Platzhalter, wie `[PASSWORD]` mit sinnvollen Werten.
 
-⚠️ Das Passwort darf nicht zu einfach sein (z.B.: 1234), da sonst, je nach Datenbank und Version, der Container nicht starten könnte. Gehe auch sicher, dass deine gewählten Ports nicht bereits besetzt sind.
+⚠️ Das Passwort darf nicht zu einfach sein (z.B.: 1234), da sonst, je nach
+Datenbank und Version, der Container nicht starten könnte. Gehe auch sicher,
+dass deine gewählten Ports nicht bereits besetzt sind.
 
 **Windows**
 
