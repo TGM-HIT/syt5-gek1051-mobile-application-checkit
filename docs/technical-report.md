@@ -8,7 +8,7 @@ BLAKE3 gilt derzeit als einer der effizientesten Hashing-Algorithmen. Er übertr
 
 https://checkit.com/list/[LIST_HASH]
 
-Um eine neue Einkaufsliste hinzuzufügen, wird die ID generiert, indem die Summe der **jemals** exestierten Listen mit dem Salt aus der `.env`-Datei addiert und anschließend mit BLAKE3 auf **128 BIT** gehasht wird. Der resultierende Hash dient als eindeutiger Identifikator für die URL (oben [LIST_HASH]). Das Verfahren lässt sich mit folgendem Pseudocode beschreiben: `blake3_hash(total_lists_created + salt)`
+Um eine neue Einkaufsliste hinzuzufügen, wird die ID generiert, indem die Summe der **jemals** exestierten Listen mit dem Pepper aus der `.env`-Datei addiert und anschließend mit BLAKE3 auf **128 BIT** gehasht wird. Der resultierende Hash dient als eindeutiger Identifikator für die URL (oben [LIST_HASH]). Das Verfahren lässt sich mit folgendem Pseudocode beschreiben: `blake3_hash(total_lists_created + pepper)`
 
 In CouchDB soll für jede neu erstellte Liste `global_stats.total_lists_created` um eins erhöht werden. Beispielsweise hier (die Namen können auch angepasst werden):
 
@@ -35,5 +35,17 @@ Wir werden BLAKE3 verwenden, da er unvergleichbar effizient ist. Um zu verhinder
 Beim Produkt-Hash hingegen ist die Ausgangslage eine andere: Da hier lediglich Kollisionen innerhalb einer begrenzten Liste vermieden werden müssen, ist eine Schlüssellänge von 64 Bit mehr als ausreichend. Solange man davon ausgeht, dass ein Benutzer pro Liste weniger als 610 Millionen Elemente verwaltet, bleibt das Risiko einer Kollision statistisch vernachlässigbar gering.
 
 ## BCrypt
+
+Wir werden den hashing Algorythmus BCrypt verwenden. Er ist ein rechenintensiver Hash, der Angriffe durch hohen CPU-Aufwand bremst. Da er jedoch kaum RAM benötigt, lässt er sich mit GPUs oder ASICs effizient parallelisieren, was ihn anfällig für moderne Hardware-Cluster macht. Der hashing Algorythmus Argon2id erzwingt dagegen eine hohe RAM-Belegung (Memory Hardness), was die Speicherbandbreite von Grafikkarten blockiert und Brute-Force-Angriffe extrem erschwert.
+
+Die Authentifizierung ist ein Nice-To-Have. Zur Sicherung der Accounts werden die Passwörter zusammen mit einem globalen **Pepper** aus der `.env`-Datei  mithilfe von **BCrypt** gehasht.
+
+`bcrypt_hash(plain_text_password + salt)` 
+
+**Rationale**
+
+Trotz der Vorteile von Argon2id setzen wir für unser System auf BCrypt, um die Kompatibilität mit ressourcenarmen Embedded-Umgebungen zu gewährleisten und diese nicht unnötig zu belasten. Da Einkaufslisten keine hochsensiblen Daten enthalten, steht der Aufwand eines industrialisierten Cluster-Angriffs für Hacker in keinem wirtschaftlichen Verhältnis zum Nutzen. Zudem optimieren wir so die Deployment-Kosten, da durch den minimalen Speicherbedarf des Algorithmus die RAM-Anforderungen deutlich gesenkt werden können.
+
+
 
 [1] [Merkle tree - Wikipedia](https://en.wikipedia.org/wiki/Merkle_tree)
