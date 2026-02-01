@@ -30,16 +30,10 @@ https://checkit.com/list/d63bd9a826af91c1fea371965a64e150/063bd9a826af91c1
 
 **Rationale**
 
-Wir werden BLAKE3 verwenden, da er derzeit der effizienteste moderne Hashing-Algorithmus ist. Um zu verhindern, dass unbefugte Dritte durch einfaches Durchprobieren von Zahlenwerten (Iterieren) fremde Einkaufslisten finden können, verwenden wir zusätzlich einen Salt. Eine Schlüssellänge von 128 Bit bietet dabei eine so enorme Entropie, dass ein Brute-Force-Angriff nach menschlichem Ermessen schlichtweg unmöglich ist.
+Wir werden BLAKE3 verwenden, da er unvergleichbar effizient ist. Um zu verhindern, dass unbefugte Dritte durch einfaches Durchprobieren von Zahlenwerten (Iterieren) fremde Einkaufslisten finden können, verwenden wir zusätzlich einen Salt. Eine Schlüssellänge von 128 Bit bietet dabei eine so enorme Entropie, dass ein Brute-Force-Angriff nach menschlichem Ermessen schlichtweg unmöglich ist.
 
 Beim Produkt-Hash hingegen ist die Ausgangslage eine andere: Da hier lediglich Kollisionen innerhalb einer begrenzten Liste vermieden werden müssen, ist eine Schlüssellänge von 64 Bit mehr als ausreichend. Solange man davon ausgeht, dass ein Benutzer pro Liste weniger als 610 Millionen Elemente verwaltet, bleibt das Risiko einer Kollision statistisch vernachlässigbar gering.
 
 ## BCrypt
-
-
-
-
-
-
 
 [1] [Merkle tree - Wikipedia](https://en.wikipedia.org/wiki/Merkle_tree)
