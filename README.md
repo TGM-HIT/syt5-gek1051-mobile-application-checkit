@@ -13,25 +13,21 @@ Check IT ist eine praktische Einkaufsliste, bei der man sich keine Sorgen um Fun
 
 ## Verwendung
 
-Ersätze <your password> mit einem selbstgewählten Passwort.
+Kopiere das `env-example` zu einem `.env` und ersätze **alle** mit eckigen Klammern markierten Platzhalter, wie `[PASSWORD]` mit sinnvollen Werten.
 
-⚠️ Achtung, das Passwort darf nicht zu einfach sein (e.g. 1234), da sonst, je nach Datenbank und Version, der Container nicht startem könnte. 
+**⚠️ Warnung**
+
+Das Passwort darf nicht zu einfach sein (z.B.: 1234), da sonst, je nach Datenbank und Version, der Container nicht starten könnte.
 
 **Windows**
 
 ```powershell
-C:\> copy env-example .env
-C:\> (Get-Content .env) ^
-     -replace '[PASSWORD]', '<your password>' ^
-     | Set-Content .env
 C:\> docker compose -p checkit up -d
 ```
 
 **Linux / Unix**
 
 ```bash
-$ cp env-example .env
-$ sed -i 's/\[PASSWORD\]/<your password>/g' .env
 $ docker compose -p checkit up -d 
 ```
 
