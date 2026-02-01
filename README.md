@@ -14,7 +14,7 @@ Liste ganz unkompliziert über eigene URLs.
 | member            | role                |
 | ----------------- | ------------------- |
 | 👑 Eva Stepanek   | Product Owner       |
-| 💻 Andreas Maurer | Technical Architekt |
+| 💻 Andreas Maurer | Technical Architect |
 | 🐜 Felix Bayerl   | A-Meise             |
 | 🐜 Jakob Jeindl   | B-Meise             |
 
