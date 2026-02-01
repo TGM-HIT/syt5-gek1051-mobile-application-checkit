@@ -35,10 +35,8 @@ $ sed -i 's/\[PASSWORD\]/<your password>/g' .env
 $ docker compose -p checkit up -d 
 ```
 
-
-
 ## Refrences
 
-- [Borko Aufgabenstellung](https://github.com/TGM-HIT/syt-exercises/tree/main/docs/dezentraleSysteme_/sem10_mobileDienste_mobile-application)
+- [Check IT](https://github.com/TGM-HIT/syt5-gek1051-mobile-application-checkit)
 
-- [CheckIT](https://github.com/TGM-HIT/syt5-gek1051-mobile-application-checkit)
+- [Borko Aufgabenstellung](https://github.com/TGM-HIT/syt-exercises/tree/main/docs/dezentraleSysteme_/sem10_mobileDienste_mobile-application)
