@@ -18,14 +18,22 @@ Liste ganz unkompliziert über eigene URLs.
 | 🐜 Felix Bayerl   | A-Meise             |
 | 🐜 Jakob Jeindl   | B-Meise             |
 
+## Technologien
+
+- Docker
+
+- Java 21
+
+- Vue.js latest
+
 ## Verwendung
 
 Kopiere das `env-example` zu einem `.env` und ersätze **alle** mit eckigen
-Klammern markierten Platzhalter, wie `[PASSWORD]` mit sinnvollen Werten.
+Klammern markierten Platzhalter, wie `[PASSWORD]` mit sinnvollen Werten. Der **Pepper** ist das backend Geheimnis und kann irgend ein String sein, aber einfachheitshalber ist es standardmäßig gleich mit dem Passwort. 
 
 ⚠️ Das Passwort darf nicht zu einfach sein (z.B.: 1234), da sonst, je nach
 Datenbank und Version, der Container nicht starten könnte. Gehe auch sicher,
-dass deine gewählten Ports nicht bereits besetzt sind.
+dass die gewählten Ports nicht bereits besetzt sind.
 
 **Windows**
 
