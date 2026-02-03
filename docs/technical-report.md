@@ -68,7 +68,15 @@ Trotz der Vorteile von Argon2id setzen wir für unser System auf BCrypt, um die 
 
 ---
 
-### Vue.js
+## Yarn
+
+Für unser Projekt habe ich mich bewusst für Yarn entschieden, da er im Vergleich zu npm einige Vorteile bietet. Einerseits ist Yarn performanter, aber die deterministische `yarn.lock` garantiert uns, dass jeder Entwickler im Team exakt die gleich Version aller Bibliotheken hat.
+
+**Rationale**
+
+Der Unterschied zu npm ist vom schwierigkeitsgrad nicht sehr gross. Einige von uns haben bereit bei Firebase mit yarn gearbeitet. Die "iT wOrKs oN mY MaChInE"-Probleme sind dadurch beseitigt.
+
+## Vue.js
 
 Für das Frontend setzen wir auf Vue.js, um von unserer bestehenden Erfahrung zu profitieren. Das Framework ermöglicht uns eine schnelle Entwicklung bei gleichzeitig hoher Wartbarkeit. Unser Setup umfasst dabei folgende Kernkomponenten:
 
@@ -78,7 +86,9 @@ Für das Frontend setzen wir auf Vue.js, um von unserer bestehenden Erfahrung zu
 
 - **Vuetify:** Ein umfangreiches UI-Framework, das auf Google's *Material Design* basiert. Es bietet uns fertige, hochgradig anpassbare Komponenten (Buttons, Tabellen, Formulare), sodass wir kein eigenes CSS für das Design schreiben müssen und ein professionelles Look-and-Feel erhalten.
 
+**Rationale**
 
+Wir kennen uns bereits mit Vue.js aus und ein Umstieg auf React wäre in unserer Situation nicht logisch. Darüber hinaus sind neue Versionen von Vue.js vergleichbar effizient wie andere Frameworks.
 
 ## Refrences
 
