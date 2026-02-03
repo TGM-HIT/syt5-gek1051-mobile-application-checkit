@@ -1,3 +1,7 @@
+# replace the [...] with appropriate values
 PASSWORD=[PASSWORD]
 BACKEND_PORT=[BACKEND_PORT]
 FRONTEND_PORT=[FRONTEND_PORT]
+
+# change the pepper only if you know what you are doing
+PEPPER=${PASSWORD}
