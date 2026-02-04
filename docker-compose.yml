@@ -1,0 +1,34 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "3000:3000"
+    networks:
+      checkit_net:
+        ipv4_address: 172.16.3.5
+
+  backend:
+    build:
+      context: ./backend
+    networks:
+      checkit_net:
+        ipv4_address: 172.16.3.10
+
+  db:
+    image: couchdb:latest
+    environment:
+      - COUCHDB_USER=admin
+      - COUCHDB_PASSWORD=${PASSWORD}
+    #volumes:
+    #  - couchdb_data:/opt/couchdb/data
+    networks:
+      checkit_net:
+        ipv4_address: 172.16.3.20
+
+networks:
+  checkit_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.16.3.0/24
