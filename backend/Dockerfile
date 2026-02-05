@@ -11,4 +11,5 @@ RUN ./gradlew bootJar -x test
 FROM eclipse-temurin:21-jre
 WORKDIR /backend
 COPY --from=build /backend/build/libs/*.jar backend.jar
+EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "backend.jar"]
