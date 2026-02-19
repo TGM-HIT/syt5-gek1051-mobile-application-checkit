@@ -38,13 +38,13 @@ dass die gewählten Ports nicht bereits besetzt sind.
 **Windows**
 
 ```powershell
-C:\> docker compose -p checkit up -d
+C:\> docker compose -p checkit up --build -d
 ```
 
 **Linux / Unix**
 
 ```bash
-$ docker compose -p checkit up -d 
+$ docker compose -p checkit up --build -d 
 ```
 
 ## Refrences
