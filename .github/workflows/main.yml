@@ -1,4 +1,4 @@
-name: CheckIT CI/CD Pipeline
+name: CheckIT CI Pipeline
 
 on:
   push:
@@ -18,31 +18,30 @@ jobs:
       - name: ⚙️ Node.js für Frontend aufsetzen
         uses: actions/setup-node@v4
         with:
-          [cite_start]node-version: '20' # Entspricht node:20-alpine [cite: 1]
+          node-version: '20'
           
       - name: 📦 Frontend Abhängigkeiten installieren & Build ausführen
         working-directory: ./frontend
         run: |
           yarn install
-          [cite_start]yarn build # Baut das Frontend [cite: 2]
+          yarn build
 
       # Backend Build Test
       - name: ☕ Java JDK 21 für Backend aufsetzen
         uses: actions/setup-java@v4
         with:
-          [cite_start]java-version: '21' # Entspricht eclipse-temurin:21-jdk [cite: 3]
+          java-version: '21'
           distribution: 'temurin'
 
       - name: 🔨 Backend mit Gradle bauen
         working-directory: ./backend
         run: |
           chmod +x gradlew
-          [cite_start]./gradlew bootJar -x test # Führt den Build ohne Tests aus [cite: 3]
+          ./gradlew bootJar -x test
 
-      # Docker Compose Test
-      - name: 🐳 Docker Images testen (Build)
+      - name: 🐳 Docker Compose ausführen
         env:
-          FRONTEND_PORT: ${{ secrets.FRONTEND_PORT || 80 }}
-          BACKEND_PORT: ${{ secrets.BACKEND_PORT || 8080 }}
-          PASSWORD: ${{ secrets.DB_PASSWORD || 'test-password' }}
+          FRONTEND_PORT: 80
+          BACKEND_PORT: 8080
+          PASSWORD: CooleTruppeCheckIT123!
         run: docker-compose build
