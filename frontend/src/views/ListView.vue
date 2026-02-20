@@ -7,6 +7,7 @@
           <div class="d-flex align-center mb-4">
             <h1 class="text-h4 font-weight-bold flex-grow-1">Einkaufsliste</h1>
             <v-btn
+                to="/settings"
                 variant="text"
                 icon="mdi-cog"
                 color="grey-darken-2"
