@@ -3,77 +3,85 @@
     <v-row justify="center">
       <v-col cols="12" md="8" lg="6">
         <v-card elevation="3" class="pa-4">
-          <v-card-title class="text-h4 font-weight-bold mb-4 d-flex align-center">
-            <v-icon icon="mdi-cart" class="mr-2" color="primary"></v-icon>
-            Einkaufsliste
-          </v-card-title>
 
-          <v-row class="mb-4">
-            <v-col cols="9">
+          <div class="d-flex align-center mb-4">
+            <h1 class="text-h4 font-weight-bold flex-grow-1">Einkaufsliste</h1>
+            <v-btn
+                variant="text"
+                icon="mdi-cog"
+                color="grey-darken-2"
+                title="Einstellungen"
+            >
+              ⚙️
+            </v-btn>
+          </div>
+
+          <v-row class="mb-4" align="center">
+            <v-col cols="8">
               <v-text-field
-                  label="Neuer Artikel (derzeit deaktiviert)"
+                  v-model="newItemName"
+                  label="Neuer Artikel"
                   variant="outlined"
                   density="comfortable"
                   hide-details
-                  disabled
+                  @keyup.enter="addItem"
               ></v-text-field>
             </v-col>
-            <v-col cols="3">
+            <v-col cols="4">
               <v-btn
                   color="grey-lighten-1"
                   height="48"
                   block
-                  elevation="0"
-                  readonly
+                  elevation="1"
+                  @click="addItem"
               >
-                Hinzufügen
+                HINZUFÜGEN
               </v-btn>
             </v-col>
           </v-row>
 
           <v-divider class="mb-6"></v-divider>
 
-          <v-list lines="one" class="bg-transparent">
-            <v-list-item
-                v-for="(item, index) in shoppingList"
-                :key="index"
-                border
-                class="mb-3 rounded-lg bg-grey-lighten-4"
-            >
-              <template v-slot:default>
-                <div class="d-flex align-center w-100 pa-2">
-                  <span class="text-body-1 flex-grow-1">
-                    {{ item.name }}
-                  </span>
+          <div v-for="(item, index) in shoppingList" :key="index" class="mb-3">
+            <v-card variant="flat" border class="bg-grey-lighten-5 rounded-lg">
+              <div class="d-flex align-center pa-3">
 
-                  <div class="ml-4">
-                    <v-btn
-                        icon="mdi-pencil-outline"
-                        variant="text"
-                        color="grey"
-                        size="small"
-                        @click.prevent
-                    ></v-btn>
-                    <v-btn
-                        icon="mdi-trash-can-outline"
-                        variant="text"
-                        color="grey"
-                        size="small"
-                        @click.prevent
-                    ></v-btn>
-                  </div>
+                <span class="text-body-1 flex-grow-1 font-weight-medium">
+                  {{ item.name }}
+                </span>
+
+                <div class="d-flex align-center">
+                  <v-btn
+                      variant="text"
+                      color="blue-grey"
+                      class="mr-2"
+                      icon
+                      @click="editItem(index)"
+                  >
+                    ✏️
+                  </v-btn>
+                  <v-btn
+                      variant="text"
+                      color="error"
+                      icon
+                      @click="removeItem(index)"
+                  >
+                    🗑️
+                  </v-btn>
                 </div>
-              </template>
-            </v-list-item>
-          </v-list>
+
+              </div>
+            </v-card>
+          </div>
 
           <v-alert
               v-if="shoppingList.length === 0"
               type="info"
               variant="tonal"
-              text="Lade Daten vom Server..."
               class="mt-4"
-          ></v-alert>
+          >
+            Lade Daten vom Server...
+          </v-alert>
         </v-card>
       </v-col>
     </v-row>
@@ -85,25 +93,48 @@ import { ref, onMounted } from 'vue';
 import axios from 'axios';
 
 const API_URL = 'http://localhost:3000/list';
-const shoppingList = ref([]);
+const newItemName = ref('');
 
-// Einzige aktive Funktion: Daten vom Backend holen
+// Die 3 Dummy-Artikel aus deinem Screenshot
+const shoppingList = ref([
+  { name: 'Milch' },
+  { name: 'Brot' },
+  { name: 'Eier' }
+]);
+
 const fetchItems = async () => {
   try {
     const response = await axios.get(API_URL);
-    // Erwartet ein Array von Objekten, z.B. [{name: 'Apfel'}, {name: 'Brot'}]
-    shoppingList.value = response.data;
+    if (response.data && Array.isArray(response.data)) {
+      // API Daten werden zu den Dummies hinzugefügt
+      shoppingList.value = [...shoppingList.value, ...response.data];
+    }
   } catch (error) {
-    console.error('Backend nicht erreichbar:', error);
+    console.warn('Backend nicht erreichbar - zeige nur lokale Liste.');
   }
+};
+
+const addItem = () => {
+  newItemName.value = ''; // Feld leeren, sonst nichts
+};
+
+const editItem = (index) => {
+  // Aktuell ohne Funktion
+};
+
+const removeItem = (index) => {
+  shoppingList.value.splice(index, 1); // Löscht lokal aus der Ansicht
 };
 
 onMounted(fetchItems);
 </script>
 
 <style scoped>
-/* Optisches Feedback für die Liste, aber keine Interaktion */
-.v-list-item {
-  cursor: default;
+/* Zusätzliches Styling für die Abstände wie im Bild */
+.v-card {
+  transition: all 0.2s ease;
+}
+.v-card:hover {
+  background-color: #f5f5f5 !important;
 }
 </style>
