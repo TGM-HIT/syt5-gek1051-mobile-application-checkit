@@ -1,0 +1,15 @@
+{
+  "_id": "global_stats",
+  "total_lists_created": 1542,
+  "type": "metadata"
+}
+
+{
+	_id: AUTO_INCREMENT,
+    name: Liste1,
+	articles: [
+        {name: 14, gewicht: 5},
+        {name: bier, gewicht 0.5},
+        {name: 1, gewicht: 4}
+    ]
+}
