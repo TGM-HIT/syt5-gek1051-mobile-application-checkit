@@ -1,10 +1,10 @@
-name: CheckIT CI Pipeline (School Project Edition)
+name: CheckIT CI Pipeline
 
 on:
   push:
-    branches: [ "dev" ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ "dev" ]
+    branches: [ "main" ]
 
 jobs:
   build-and-test:
@@ -38,7 +38,7 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew bootJar -x test
-
+          
       # Docker Compose Test (Hier stehen jetzt deine Klartext-Passwörter)
       - name: 🐳 Docker Compose ausführen
         env:
