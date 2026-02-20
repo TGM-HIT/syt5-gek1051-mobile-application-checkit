@@ -1,20 +1,19 @@
 <template>
   <v-app>
-    <v-container class="fill-height" fluid>
-      <v-row justify="center" align="center">
-        <v-col class="text-center">
-          <h1 class="text-h2 text-success">
-            &#9745;&#65039; CheckIT
-          </h1>
-          <v-btn 
-            color="primary" 
-            class="mt-6" 
-            size="large"
-          >
-            einkaufsliste erstellen
-          </v-btn>
-        </v-col>
-      </v-row>
-    </v-container>
-  </v-app>
+    <v-main>
+      <router-view />
+    </v-main>
+
+    </v-app>
 </template>
+
+<script setup lang="ts">
+// Logic that applies to the entire app goes here
+</script>
+
+<style>
+/* Global styles like your Inter font */
+:root {
+  font-family: 'Inter', sans-serif;
+}
+</style>
