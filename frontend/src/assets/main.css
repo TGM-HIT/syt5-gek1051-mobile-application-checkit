@@ -1,0 +1,10 @@
+html, body {
+  font-family: 'Inter'
+}
+
+#app {
+  font-family: 'Inter'
+}
+
+/* If you want to use the modern "variable" version of Inter */
+/* font-family: 'Inter Variable', sans-serif; */

@@ -4,7 +4,7 @@
       <v-row justify="center" align="center">
         <v-col class="text-center">
           <h1 class="text-h2 text-success">
-            CheckIT
+            &#9745;&#65039; CheckIT
           </h1>
           <v-btn 
             color="primary" 
