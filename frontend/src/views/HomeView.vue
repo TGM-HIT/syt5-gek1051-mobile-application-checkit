@@ -8,6 +8,7 @@
               &#9745;&#65039; CheckIT
             </h1>
             <v-btn 
+              to="/list"
               color="primary" 
               class="mt-6" 
               size="large"
