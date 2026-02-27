@@ -120,15 +120,44 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- Name Entry Dialog -->
+    <v-dialog v-model="showNameDialog" persistent max-width="400">
+      <v-card title="Bitte Namen eingeben">
+        <v-card-text>
+          <p class="mb-4">Um die Einkaufsliste zu nutzen, gib bitte deinen Namen ein.</p>
+          <v-text-field
+            v-model="nameInput"
+            label="Dein Name"
+            variant="outlined"
+            density="comfortable"
+            @keyup.enter="submitName"
+            autofocus
+          ></v-text-field>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn
+            color="primary"
+            variant="flat"
+            :disabled="!nameInput.trim()"
+            @click="submitName"
+          >
+            Bestätigen
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-import { useRoute } from 'vue-router'; // Wichtig, um URL-Parameter zu lesen
+import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 
 const route = useRoute();
+const router = useRouter();
 const API_URL = 'http://localhost:3000/list';
 
 // State für neue Artikel
@@ -141,7 +170,11 @@ const editDialog = ref(false);
 const selectedId = ref(null);
 const editModel = ref({ name: '', menge: '' });
 
-// Titel der Liste aus der URL (query ?name=...) auslesen
+// Name Prompt Logic
+const showNameDialog = ref(false);
+const nameInput = ref('');
+
+// Titel der Liste aus der URL (query ?list=...) auslesen
 const currentListName = computed(() => {
   return route.query.list || 'Meine Einkaufsliste';
 });
@@ -152,7 +185,14 @@ const headers = [
   { title: 'Aktionen', value: 'actions', align: 'end', sortable: false },
 ];
 
-// --- LOGIK ---
+// --- FUNKTIONEN ---
+
+const submitName = () => {
+  if (nameInput.value.trim()) {
+    router.replace({ query: { ...route.query, name: nameInput.value.trim() } });
+    showNameDialog.value = false;
+  }
+};
 
 const fetchItems = async () => {
   try {
@@ -213,7 +253,12 @@ const saveEdit = () => {
       .catch(e => console.error("Sync Fehler beim Speichern"));
 };
 
-onMounted(fetchItems);
+onMounted(() => {
+  if (!route.query.name) {
+    showNameDialog.value = true;
+  }
+  fetchItems();
+});
 </script>
 
 <style scoped>
