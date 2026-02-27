@@ -5,8 +5,16 @@
         <v-card elevation="3" class="pa-4">
 
           <div class="d-flex align-center mb-4">
-            <h1 class="text-h4 font-weight-bold flex-grow-1">Einkaufsliste</h1>
-            <v-btn to="/settings" variant="text" icon color="grey-darken-2" title="Einstellungen">
+            <h1 class="text-h4 font-weight-bold flex-grow-1">
+              {{ currentListName }}
+            </h1>
+            <v-btn
+                to="/settings"
+                variant="text"
+                icon
+                color="grey-darken-2"
+                title="Einstellungen"
+            >
               ⚙️
             </v-btn>
           </div>
@@ -61,7 +69,6 @@
                     class="mr-2"
                     icon
                     @click="openEditDialog(item)"
-                    @mouseenter="registerActivator($event)"
                 >
                   ✏️
                 </v-btn>
@@ -77,65 +84,67 @@
             </template>
           </v-data-table>
 
-          <v-alert v-if="shoppingList.length === 0" type="info" variant="tonal" class="mt-4">
+          <v-alert
+              v-if="shoppingList.length === 0"
+              type="info"
+              variant="tonal"
+              class="mt-4"
+          >
             Lade Daten vom Server...
           </v-alert>
         </v-card>
       </v-col>
     </v-row>
 
-    <v-dialog v-model="editDialog" :activator="activator" max-width="400">
-      <v-confirm-edit
-          v-model="editModel"
-          ok-text="Speichern"
-          cancel-text="Abbrechen"
-          @cancel="editDialog = false"
-          @save="saveEdit"
-      >
-        <template v-slot:default="{ model: proxyModel, actions }">
-          <v-card title="Artikel bearbeiten">
-            <v-card-text>
-              <v-text-field
-                  v-model="proxyModel.value.name"
-                  label="Name"
-                  variant="outlined"
-                  class="mb-4"
-              ></v-text-field>
+    <v-dialog v-model="editDialog" max-width="400" persistent>
+      <v-card title="Artikel bearbeiten">
+        <v-card-text>
+          <v-text-field
+              v-model="editModel.name"
+              label="Name"
+              variant="outlined"
+              class="mb-4"
+          ></v-text-field>
 
-              <v-text-field
-                  v-model="proxyModel.value.menge"
-                  label="Menge"
-                  variant="outlined"
-              ></v-text-field>
-            </v-card-text>
+          <v-text-field
+              v-model="editModel.menge"
+              label="Menge"
+              variant="outlined"
+          ></v-text-field>
+        </v-card-text>
 
-            <template v-slot:actions>
-              <v-spacer></v-spacer>
-              <component :is="actions"></component>
-            </template>
-          </v-card>
-        </template>
-      </v-confirm-edit>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn color="grey-darken-1" variant="text" @click="editDialog = false">Abbrechen</v-btn>
+          <v-btn color="primary" variant="elevated" @click="saveEdit">Speichern</v-btn>
+        </v-card-actions>
+      </v-card>
     </v-dialog>
   </v-container>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
+import { useRoute } from 'vue-router'; // Wichtig, um URL-Parameter zu lesen
 import axios from 'axios';
 
+const route = useRoute();
 const API_URL = 'http://localhost:3000/list';
 
 // State für neue Artikel
 const newItemName = ref('');
 const newItemMenge = ref('');
 
-// State für die Liste und Dialog
+// State für Liste und Dialog
 const shoppingList = ref([]);
 const editDialog = ref(false);
-const activator = ref(null);
 const selectedId = ref(null);
 const editModel = ref({ name: '', menge: '' });
+
+// Titel der Liste aus der URL (query ?name=...) auslesen
+const currentListName = computed(() => {
+  return route.query.list || 'Meine Einkaufsliste';
+});
 
 const headers = [
   { title: 'Name', value: 'name', align: 'start', sortable: true },
@@ -143,7 +152,7 @@ const headers = [
   { title: 'Aktionen', value: 'actions', align: 'end', sortable: false },
 ];
 
-// --- FUNKTIONEN ---
+// --- LOGIK ---
 
 const fetchItems = async () => {
   try {
@@ -160,58 +169,56 @@ const fetchItems = async () => {
 
 const addItem = async () => {
   if (!newItemName.value) return;
-
   const newItem = {
     name: newItemName.value,
-    menge: newItemMenge.value || '1' // Standardwert 1, falls leer
+    menge: newItemMenge.value || '1'
   };
 
   try {
     const response = await axios.post(API_URL, newItem);
     shoppingList.value.push(response.data);
   } catch (e) {
+    // Lokal hinzufügen als Fallback
     shoppingList.value.push({ id: Date.now(), ...newItem });
   }
 
-  // Felder leeren
   newItemName.value = '';
   newItemMenge.value = '';
 };
 
-const removeItem = async (id) => {
+const removeItem = (id) => {
+  // Sofort lokal löschen für bessere Geschwindigkeit
   shoppingList.value = shoppingList.value.filter(item => item.id !== id);
-  try {
-    await axios.delete(`${API_URL}/${id}`);
-  } catch (e) {
-    console.error("Server-Fehler beim Löschen");
-  }
+  axios.delete(`${API_URL}/${id}`).catch(e => console.error("Sync Fehler beim Löschen"));
 };
-
-function registerActivator(event) {
-  activator.value = event.currentTarget;
-}
 
 function openEditDialog(item) {
   selectedId.value = item.id;
-  editModel.value = { name: item.name, menge: item.menge };
+  editModel.value = { ...item }; // Kopie erstellen
   editDialog.value = true;
 }
 
-const saveEdit = async () => {
-  const updatedItem = { ...editModel.value };
+const saveEdit = () => {
+  // 1. Fenster sofort schließen
+  editDialog.value = false;
 
-  try {
-    await axios.put(`${API_URL}/${selectedId.value}`, updatedItem);
-  } catch (e) {
-    console.warn("Nur lokal gespeichert");
-  }
-
+  // 2. Lokal in der Liste aktualisieren
   const index = shoppingList.value.findIndex(i => i.id === selectedId.value);
   if (index !== -1) {
-    shoppingList.value[index] = { ...shoppingList.value[index], ...updatedItem };
+    shoppingList.value[index] = { ...editModel.value };
   }
-  editDialog.value = false;
+
+  // 3. Im Hintergrund an den Server senden
+  axios.put(`${API_URL}/${selectedId.value}`, editModel.value)
+      .catch(e => console.error("Sync Fehler beim Speichern"));
 };
 
 onMounted(fetchItems);
 </script>
+
+<style scoped>
+/* Scoped Styles für das Tabellen-Design */
+:deep(.v-data-table__tr:hover) {
+  background-color: #f5f5f5 !important;
+}
+</style>
