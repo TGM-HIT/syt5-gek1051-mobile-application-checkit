@@ -5,6 +5,7 @@ import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 // Import Components (Views)
 import HomeView from './views/HomeView.vue'
 import ListView from './views/ListView.vue'
+import SettingsView from './views/SettingsView.vue'
 
 import "@fontsource/inter"; // Defaults to weight 400
 import "@fontsource/inter/700.css"; // Optional: if you want bold
@@ -31,6 +32,11 @@ const routes: Array<RouteRecordRaw> = [
     path: '/list',
     name: 'ListView',
     component: ListView
+  },
+  {
+    path: '/settings',
+    name: 'SettingsView',
+    component: SettingsView
   }
 ]
 
