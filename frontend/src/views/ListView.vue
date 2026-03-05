@@ -4,14 +4,23 @@
       <v-col cols="12" md="10" lg="8">
         <v-card elevation="3" class="pa-4">
 
-          <div class="d-flex align-center mb-4">
-            <h1 class="text-h4 font-weight-bold flex-grow-1">
-              {{ currentListName }}
-            </h1>
+          <div class="d-flex align-center mb-2">
+            <div class="flex-grow-1">
+              <h1 class="text-h4 font-weight-bold">
+                {{ currentListName }}
+              </h1>
+              <div class="text-caption text-grey mt-1 hash-label">
+                /list/{{ listHash }}
+              </div>
+            </div>
             <v-btn to="/settings" variant="text" icon color="grey-darken-2">
               ⚙️
             </v-btn>
           </div>
+
+          <v-chip color="grey-darken-1" variant="outlined" size="small" class="mb-4">
+            🌐 {{ totalListsCreated }} Liste{{ totalListsCreated === 1 ? '' : 'n' }} insgesamt erstellt
+          </v-chip>
 
           <v-row class="mb-4" dense>
             <v-col cols="12" sm="6">
@@ -108,9 +117,26 @@
 import { ref, onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import axios from 'axios';
+import { getListsCreated } from '@/utils/listHash';
 
 const route = useRoute();
-const API_URL = 'http://localhost:3000/list';
+
+// The hash is a URL segment: /list/:hash
+const listHash = computed(() => route.params.hash ?? '');
+
+// The human-readable name is passed as a query param for display
+const currentListName = computed(() => route.query.name || 'Einkaufsliste');
+
+// Global stats from localStorage
+const totalListsCreated = ref(0);
+
+onMounted(async () => {
+  totalListsCreated.value = await getListsCreated();
+});
+
+// Use the hash as the key for the API endpoint
+const API_BASE = 'http://localhost:3000/list';
+const apiUrl = computed(() => `${API_BASE}/${listHash.value}`);
 
 const searchQuery = ref('');
 const newItemMenge = ref('');
@@ -119,9 +145,6 @@ const editDialog = ref(false);
 const selectedId = ref(null);
 const editModel = ref({ name: '', menge: '', done: false });
 
-const currentListName = computed(() => route.query.list || 'Einkaufsliste');
-
-// WICHTIG: Nutze 'key' für die Zuweisung
 const headers = [
   { title: 'Done', key: 'done', align: 'start', sortable: false, width: '50px' },
   { title: 'Artikel', key: 'name', align: 'start', sortable: true },
@@ -131,7 +154,7 @@ const headers = [
 
 const fetchItems = async () => {
   try {
-    const response = await axios.get(API_URL);
+    const response = await axios.get(apiUrl.value);
     shoppingList.value = response.data.map(item => ({ ...item, done: item.done || false }));
   } catch (error) {
     shoppingList.value = [
@@ -146,7 +169,7 @@ const addItem = async () => {
   if (!searchQuery.value) return;
   const newItem = { name: searchQuery.value, menge: newItemMenge.value || '1', done: false };
   try {
-    const response = await axios.post(API_URL, newItem);
+    const response = await axios.post(apiUrl.value, newItem);
     shoppingList.value.push(response.data);
   } catch (e) {
     shoppingList.value.push({ id: Date.now(), ...newItem });
@@ -156,12 +179,12 @@ const addItem = async () => {
 };
 
 const toggleDone = (item) => {
-  axios.put(`${API_URL}/${item.id}`, item).catch(() => {});
+  axios.put(`${API_BASE}/${listHash.value}/${item.id}`, item).catch(() => {});
 };
 
 const removeItem = (id) => {
   shoppingList.value = shoppingList.value.filter(item => item.id !== id);
-  axios.delete(`${API_URL}/${id}`).catch(() => {});
+  axios.delete(`${API_BASE}/${listHash.value}/${id}`).catch(() => {});
 };
 
 function openEditDialog(item) {
@@ -176,7 +199,7 @@ const saveEdit = () => {
   if (index !== -1) {
     shoppingList.value[index] = { ...editModel.value };
   }
-  axios.put(`${API_URL}/${selectedId.value}`, editModel.value).catch(() => {});
+  axios.put(`${API_BASE}/${listHash.value}/${selectedId.value}`, editModel.value).catch(() => {});
 };
 
 onMounted(fetchItems);
@@ -187,8 +210,12 @@ onMounted(fetchItems);
   text-decoration: line-through !important;
   color: grey !important;
 }
-/* Standard HTML Checkbox Styling */
 input[type="checkbox"] {
   accent-color: #4caf50;
+}
+.hash-label {
+  font-family: monospace;
+  font-size: 0.75rem;
+  word-break: break-all;
 }
 </style>

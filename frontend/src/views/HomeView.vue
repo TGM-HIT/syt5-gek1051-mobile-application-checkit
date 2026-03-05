@@ -8,6 +8,10 @@
               ☑️ CheckIT
             </h1>
 
+            <v-chip v-if="totalListsCreated > 0" color="grey-darken-1" variant="outlined" class="mb-4">
+              🌐 {{ totalListsCreated }} Liste{{ totalListsCreated === 1 ? '' : 'n' }} erstellt
+            </v-chip>
+
             <v-btn
                 v-if="!showInput"
                 color="primary"
@@ -46,19 +50,26 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { hashListName, incrementListsCreated, getListsCreated } from '@/utils/listHash';
 
 const router = useRouter();
 const showInput = ref(false);
 const listName = ref('');
+const totalListsCreated = ref(0);
 
-const navigateToTable = () => {
+onMounted(async () => {
+  totalListsCreated.value = await getListsCreated();
+});
+
+const navigateToTable = async () => {
   if (listName.value) {
-    // Wir übergeben den Namen als Query-Parameter in der URL
+    const hash = hashListName(listName.value);
+    totalListsCreated.value = await incrementListsCreated();
     router.push({
-      path: '/list',
-      query: { list: listName.value }
+      path: `/list/${hash}`,
+      query: { name: listName.value }
     });
   }
 };

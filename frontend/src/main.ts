@@ -29,7 +29,7 @@ const routes: Array<RouteRecordRaw> = [
     component: HomeView
   },
   {
-    path: '/list',
+    path: '/list/:hash',
     name: 'ListView',
     component: ListView
   },
