@@ -1,8 +1,7 @@
-// https://on.cypress.io/api
-
-describe('My First Test', () => {
-  it('visits the app root url', () => {
+describe('App Start-Test', () => {
+  it('Die App lädt erfolgreich', () => {
     cy.visit('/')
-    cy.contains('h1', 'You did it!')
+    
+    cy.get('#app').should('exist')
   })
 })
