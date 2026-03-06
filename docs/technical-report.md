@@ -90,6 +90,28 @@ Für das Frontend setzen wir auf Vue.js, um von unserer bestehenden Erfahrung zu
 
 Wir kennen uns bereits mit Vue.js aus und ein Umstieg auf React wäre in unserer Situation nicht logisch. Darüber hinaus sind neue Versionen von Vue.js vergleichbar effizient wie andere Frameworks.
 
+## Database Structure
+
+```
+{
+  "_id": "global_stats",
+  "total_lists_created": 1542,
+  "type": "metadata"
+}
+
+{
+    _id: <hash>,
+    deleted: true,
+    name: Liste1,
+    articles: [
+        {checked: false, name: 14, gewicht: 5},
+        {checked: true, name: bier, gewicht 0.5},
+        {checked: false, name: 1, gewicht: 4}
+    ],
+    version: timestamp
+}
+```
+
 ## Refrences
 
 [1] [Merkle tree - Wikipedia](https://en.wikipedia.org/wiki/Merkle_tree)
