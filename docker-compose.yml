@@ -22,7 +22,10 @@ services:
     environment:
       - COUCHDB_USER=admin
       - COUCHDB_PASSWORD=${PASSWORD}
-    #volumes:
+    ports:
+      - "5984:5984"
+    volumes:
+      - ./couchdb-config/local.ini:/opt/couchdb/etc/local.d/cors.ini
     #  - couchdb_data:/opt/couchdb/data
     networks:
       checkit_net:

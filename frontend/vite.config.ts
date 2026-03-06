@@ -17,4 +17,7 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url))
     },
   },
+  // Read .env from the repo root (one level up) instead of frontend/
+  envDir: '../',
 })
+

@@ -9,7 +9,7 @@
                 icon
                 variant="text"
                 class="mr-2"
-                @click="$router.push('/list')"
+                @click="$router.back()"
             >
               ⬅️
             </v-btn>
@@ -55,7 +55,7 @@
 
           <v-card-actions class="mt-6">
             <v-spacer></v-spacer>
-            <v-btn color="primary" variant="text" @click="$router.push('/list')">Fertig</v-btn>
+            <v-btn color="primary" variant="text" @click="$router.back()">Fertig</v-btn>
           </v-card-actions>
         </v-card>
       </v-col>

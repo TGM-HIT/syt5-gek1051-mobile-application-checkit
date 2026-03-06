@@ -4,6 +4,7 @@
       <v-col cols="12" md="10" lg="8">
         <v-card elevation="3" class="pa-4">
 
+          <!-- Header: list name + username + actions -->
           <div class="d-flex align-center mb-2">
             <div class="flex-grow-1">
               <h1 class="text-h4 font-weight-bold">
@@ -13,6 +14,42 @@
                 /list/{{ listHash }}
               </div>
             </div>
+
+            <!-- Username chip -->
+            <v-chip
+                v-if="username"
+                color="primary"
+                variant="tonal"
+                size="small"
+                class="mr-2"
+            >
+              👤 {{ username }}
+            </v-chip>
+
+            <!-- Logout -->
+            <v-btn
+                v-if="username"
+                variant="text"
+                icon
+                color="grey-darken-2"
+                title="Abmelden"
+                @click="logout"
+            >
+              🚪
+            </v-btn>
+
+            <!-- CouchDB sync status -->
+            <v-chip
+                :color="syncColor"
+                variant="tonal"
+                size="x-small"
+                class="mr-2"
+                :title="'CouchDB: ' + couchDbStatus"
+            >
+              {{ syncLabel }}
+            </v-chip>
+
+            <!-- Settings -->
             <v-btn to="/settings" variant="text" icon color="grey-darken-2">
               ⚙️
             </v-btn>
@@ -97,6 +134,7 @@
       </v-col>
     </v-row>
 
+    <!-- Edit dialog -->
     <v-dialog v-model="editDialog" max-width="400" persistent>
       <v-card title="Artikel bearbeiten">
         <v-card-text>
@@ -110,99 +148,182 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- Username dialog (shown if no cookie) -->
+    <v-dialog v-model="nameDialog" max-width="420" persistent>
+      <v-card>
+        <v-card-title class="text-h6 pt-6 pb-2 px-6">
+          👋 Willkommen bei CheckIT!
+        </v-card-title>
+        <v-card-subtitle class="px-6 pb-4">
+          Wie dürfen wir dich nennen? Dein Name wird als Cookie gespeichert (<code>checkit_username</code>).
+        </v-card-subtitle>
+        <v-card-text class="px-6">
+          <v-text-field
+              v-model="nameInput"
+              label="Dein Name"
+              variant="outlined"
+              autofocus
+              hide-details
+              @keyup.enter="saveName"
+          ></v-text-field>
+        </v-card-text>
+        <v-card-actions class="px-6 pb-6">
+          <v-spacer></v-spacer>
+          <v-btn
+              color="primary"
+              variant="elevated"
+              :disabled="!nameInput.trim()"
+              @click="saveName"
+          >
+            Los geht's!
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
-<script setup>
-import { ref, onMounted, computed } from 'vue';
+<script setup lang="ts">
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
-import axios from 'axios';
-import { getListsCreated } from '@/utils/listHash';
+import { getListsCreated, getUsername, setUsername, clearUsername, couchDbStatus, listDb, type ListMeta, type ListItem } from '@/utils/listHash';
 
 const route = useRoute();
 
-// The hash is a URL segment: /list/:hash
-const listHash = computed(() => route.params.hash ?? '');
-
-// The human-readable name is passed as a query param for display
-const currentListName = computed(() => route.query.name || 'Einkaufsliste');
-
-// Global stats from localStorage
+const listHash = computed(() => route.params.hash as string ?? '');
+const currentListName = ref<string>('Einkaufsliste');
 const totalListsCreated = ref(0);
+const username  = ref<string | null>(null);
+const nameDialog = ref(false);
+const nameInput  = ref('');
+
+let listDoc: ListMeta | null = null;
+let changeListener: any = null;
 
 onMounted(async () => {
   totalListsCreated.value = await getListsCreated();
+  username.value = getUsername();
+  if (!username.value) nameDialog.value = true;
+  await fetchItems();
+  
+  // listen for realtime updates
+  changeListener = listDb.changes({ 
+    since: 'now', 
+    live: true, 
+    include_docs: true,
+    doc_ids: [listHash.value]
+  }).on('change', (change) => {
+    if (change.id === listHash.value && change.doc) {
+      listDoc = change.doc as ListMeta;
+      currentListName.value = listDoc.name;
+      shoppingList.value = listDoc.items || [];
+    }
+  });
 });
 
-// Use the hash as the key for the API endpoint
-const API_BASE = 'http://localhost:3000/list';
-const apiUrl = computed(() => `${API_BASE}/${listHash.value}`);
+onUnmounted(() => {
+  if (changeListener) changeListener.cancel();
+});
 
-const searchQuery = ref('');
+const saveName = () => {
+  const trimmed = nameInput.value.trim();
+  if (!trimmed) return;
+  setUsername(trimmed);
+  username.value = trimmed;
+  nameDialog.value = false;
+};
+
+const logout = () => {
+  clearUsername();
+  username.value = null;
+  nameInput.value = '';
+  nameDialog.value = true;
+};
+
+const syncLabel = computed(() => ({
+  connecting: '🔄 DB',
+  active:     '🟢 DB',
+  paused:     '⏸ DB',
+  error:      '🔴 DB',
+  disabled:   '⚫ DB',
+}[couchDbStatus.value]));
+
+const syncColor = computed(() => ({
+  connecting: 'grey',
+  active:     'success',
+  paused:     'warning',
+  error:      'error',
+  disabled:   'grey',
+}[couchDbStatus.value]));
+
+const searchQuery  = ref('');
 const newItemMenge = ref('');
-const shoppingList = ref([]);
-const editDialog = ref(false);
-const selectedId = ref(null);
-const editModel = ref({ name: '', menge: '', done: false });
+const shoppingList = ref<ListItem[]>([]);
+const editDialog   = ref(false);
+const selectedId   = ref<any>(null);
+const editModel    = ref<ListItem>({ id: '', name: '', menge: '', done: false });
 
 const headers = [
-  { title: 'Done', key: 'done', align: 'start', sortable: false, width: '50px' },
-  { title: 'Artikel', key: 'name', align: 'start', sortable: true },
-  { title: 'Menge', key: 'menge', align: 'start', sortable: true },
-  { title: 'Aktionen', key: 'actions', align: 'end', sortable: false },
+  { title: 'Done',    key: 'done',    align: 'start' as const, sortable: false, width: '50px' },
+  { title: 'Artikel', key: 'name',    align: 'start' as const, sortable: true },
+  { title: 'Menge',   key: 'menge',   align: 'start' as const, sortable: true },
+  { title: 'Aktionen',key: 'actions', align: 'end'   as const, sortable: false },
 ];
 
 const fetchItems = async () => {
   try {
-    const response = await axios.get(apiUrl.value);
-    shoppingList.value = response.data.map(item => ({ ...item, done: item.done || false }));
-  } catch (error) {
-    shoppingList.value = [
-      { id: 1, name: 'Milch', menge: '2L', done: false },
-      { id: 2, name: 'Brot', menge: '1 Stk.', done: true },
-      { id: 3, name: 'Eier', menge: '10 Stk.', done: false }
-    ];
+    listDoc = await listDb.get<ListMeta>(listHash.value);
+    currentListName.value = listDoc.name;
+    shoppingList.value = listDoc.items || [];
+  } catch (err: any) {
+    if (err.status !== 404) console.warn('[fetchItems]', err);
+  }
+};
+
+const saveItemsToDb = async () => {
+  if (!listDoc) return;
+  listDoc.items = [...shoppingList.value];
+  try {
+    const response = await listDb.put(listDoc);
+    listDoc._rev = response.rev;
+  } catch (err) {
+    console.warn('Save failed:', err);
+    // Reload state on conflict
+    await fetchItems();
   }
 };
 
 const addItem = async () => {
   if (!searchQuery.value) return;
-  const newItem = { name: searchQuery.value, menge: newItemMenge.value || '1', done: false };
-  try {
-    const response = await axios.post(apiUrl.value, newItem);
-    shoppingList.value.push(response.data);
-  } catch (e) {
-    shoppingList.value.push({ id: Date.now(), ...newItem });
-  }
-  searchQuery.value = '';
+  const newItem = { id: Date.now().toString(), name: searchQuery.value, menge: newItemMenge.value || '1', done: false };
+  shoppingList.value.push(newItem);
+  searchQuery.value  = '';
   newItemMenge.value = '';
+  await saveItemsToDb();
 };
 
-const toggleDone = (item) => {
-  axios.put(`${API_BASE}/${listHash.value}/${item.id}`, item).catch(() => {});
+const toggleDone = async (item: ListItem) => {
+  await saveItemsToDb();
 };
 
-const removeItem = (id) => {
+const removeItem = async (id: string | number) => {
   shoppingList.value = shoppingList.value.filter(item => item.id !== id);
-  axios.delete(`${API_BASE}/${listHash.value}/${id}`).catch(() => {});
+  await saveItemsToDb();
 };
 
-function openEditDialog(item) {
+function openEditDialog(item: ListItem) {
   selectedId.value = item.id;
-  editModel.value = { ...item };
+  editModel.value  = { ...item };
   editDialog.value = true;
 }
 
-const saveEdit = () => {
+const saveEdit = async () => {
   editDialog.value = false;
   const index = shoppingList.value.findIndex(i => i.id === selectedId.value);
-  if (index !== -1) {
-    shoppingList.value[index] = { ...editModel.value };
-  }
-  axios.put(`${API_BASE}/${listHash.value}/${selectedId.value}`, editModel.value).catch(() => {});
+  if (index !== -1) shoppingList.value[index] = { ...editModel.value };
+  await saveItemsToDb();
 };
-
-onMounted(fetchItems);
 </script>
 
 <style scoped>
