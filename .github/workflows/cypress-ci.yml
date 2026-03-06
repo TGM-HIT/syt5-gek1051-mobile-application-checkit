@@ -36,7 +36,7 @@ jobs:
           # 1. Installieren (nutzt automatisch 'npm ci')
           
           # 2. Bauen (Wichtig: Vite Preview braucht vorher einen Build!)
-          build: npm run build
+          build: npm run build-only
           
           # 3. Starten (Der Server, gegen den getestet wird)
           start: npm run preview
