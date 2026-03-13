@@ -3,7 +3,9 @@
     <v-row justify="center" align="center">
       <v-col cols="12" sm="8" md="5" lg="4">
         <v-card elevation="4" class="pa-8" rounded="lg">
-          <h1 class="text-h4 font-weight-bold text-center mb-6">☑️ CheckIT</h1>
+          <h1 class="text-h4 font-weight-bold text-center mb-6">
+            <v-icon color="success" class="mr-1">mdi-checkbox-marked</v-icon>CheckIT
+          </h1>
 
           <v-alert v-if="error" type="error" variant="tonal" class="mb-4" density="compact">
             {{ error }}
@@ -13,6 +15,7 @@
               v-model="username"
               label="Username"
               variant="outlined"
+              prepend-inner-icon="mdi-account"
               autofocus
               class="mb-3"
               hide-details="auto"
@@ -23,6 +26,7 @@
               label="Password"
               type="password"
               variant="outlined"
+              prepend-inner-icon="mdi-lock"
               class="mb-3"
               hide-details="auto"
               @keyup.enter="submit"
@@ -32,12 +36,13 @@
               label="Confirm Password"
               type="password"
               variant="outlined"
+              prepend-inner-icon="mdi-lock-check"
               class="mb-6"
               hide-details="auto"
               @keyup.enter="submit"
           />
 
-          <v-btn color="primary" block size="large" :loading="loading" @click="submit">
+          <v-btn color="primary" block size="large" prepend-icon="mdi-account-plus" :loading="loading" @click="submit">
             Register
           </v-btn>
 

@@ -36,17 +36,17 @@
                 class="mr-2"
                 @click="toggleOffline"
             >
-              {{ simulatedOffline ? '🔴 Offline' : '🟢 Online' }}
+              <v-icon start>{{ simulatedOffline ? 'mdi-wifi-off' : 'mdi-wifi' }}</v-icon>
+              {{ simulatedOffline ? 'Offline' : 'Online' }}
             </v-btn>
 
             <!-- Settings -->
-            <v-btn to="/settings" variant="text" icon color="grey-darken-2">
-              ⚙️
-            </v-btn>
+            <v-btn to="/settings" variant="text" icon="mdi-cog" color="grey-darken-2" />
           </div>
 
           <v-chip color="grey-darken-1" variant="outlined" size="small" class="mb-4">
-            🌐 {{ totalListsCreated }} Liste{{ totalListsCreated === 1 ? '' : 'n' }} insgesamt erstellt
+            <v-icon start>mdi-earth</v-icon>
+            {{ totalListsCreated }} Liste{{ totalListsCreated === 1 ? '' : 'n' }} insgesamt erstellt
           </v-chip>
 
           <v-row class="mb-4" dense>
@@ -57,7 +57,7 @@
                   variant="outlined"
                   density="comfortable"
                   hide-details
-                  prepend-inner-icon="🔍"
+                  prepend-inner-icon="mdi-magnify"
                   clearable
                   @keyup.enter="addItem"
               ></v-text-field>
@@ -107,12 +107,8 @@
 
             <template v-slot:[`item.actions`]="{ item }">
               <div class="d-flex justify-end">
-                <v-btn variant="text" color="blue-grey" class="mr-2" icon @click="openEditDialog(item)">
-                  ✏️
-                </v-btn>
-                <v-btn variant="text" color="error" icon @click="removeItem(item.id)">
-                  🗑️
-                </v-btn>
+                <v-btn variant="text" color="blue-grey" class="mr-2" icon="mdi-pencil" @click="openEditDialog(item)" />
+                <v-btn variant="text" color="error" icon="mdi-delete" @click="removeItem(item.id)" />
               </div>
             </template>
           </v-data-table>
@@ -182,11 +178,11 @@ onUnmounted(() => {
 });
 
 const syncLabel = computed(() => ({
-  connecting: '🔄 DB',
-  active:     '🟢 DB',
-  paused:     '⏸ DB',
-  error:      '🔴 DB',
-  disabled:   '⚫ DB',
+  connecting: 'DB connecting',
+  active:     'DB active',
+  paused:     'DB paused',
+  error:      'DB error',
+  disabled:   'DB disabled',
 }[couchDbStatus.value]));
 
 const syncColor = computed(() => ({

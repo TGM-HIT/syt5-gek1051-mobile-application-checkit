@@ -106,6 +106,47 @@ async function incrementListsCreated(): Promise<number> {
     return stats.total_lists_created;
 }
 
+// ─── User list index ──────────────────────────────────────────────────────────
+
+export interface UserListEntry {
+    hash: string;
+    name: string;
+    createdAt: string; // ISO date string
+}
+
+interface UserListsDoc {
+    _id: string;
+    _rev?: string;
+    lists: UserListEntry[];
+}
+
+function userListsId(username: string): string {
+    return `user_lists:${username}`;
+}
+
+export async function getUserLists(username: string): Promise<UserListEntry[]> {
+    try {
+        const doc = await listDb.get<UserListsDoc>(userListsId(username));
+        return doc.lists;
+    } catch (err: any) {
+        if (err.status === 404) return [];
+        throw err;
+    }
+}
+
+async function recordListForUser(username: string, hash: string, name: string): Promise<void> {
+    const id = userListsId(username);
+    let doc: UserListsDoc;
+    try {
+        doc = await listDb.get<UserListsDoc>(id);
+    } catch (err: any) {
+        if (err.status !== 404) throw err;
+        doc = { _id: id, lists: [] };
+    }
+    doc.lists.push({ hash, name, createdAt: new Date().toISOString() });
+    await listDb.put(doc);
+}
+
 // ─── List creation ────────────────────────────────────────────────────────────
 
 /**
@@ -117,7 +158,7 @@ async function incrementListsCreated(): Promise<number> {
  *
  * Returns { hash, newCount }.
  */
-export async function createList(name: string): Promise<{ hash: string; newCount: number }> {
+export async function createList(name: string, username?: string): Promise<{ hash: string; newCount: number }> {
     const pepper = import.meta.env.VITE_PEPPER ?? '';
     const currentCount = await getListsCreated();
     const hash = blake2sHex(String(currentCount) + pepper, undefined, 16);
@@ -132,6 +173,7 @@ export async function createList(name: string): Promise<{ hash: string; newCount
 
     await listDb.put<ListMeta>({ _id: hash, name });
     const newCount = await incrementListsCreated();
+    if (username) await recordListForUser(username, hash, name);
     return { hash, newCount };
 }
 
