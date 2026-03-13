@@ -4,29 +4,71 @@
       <v-col cols="12" md="10" lg="8">
         <v-card elevation="3" class="pa-4">
 
-          <div class="d-flex align-center mb-4">
-            <h1 class="text-h4 font-weight-bold flex-grow-1">
-              {{ currentListName }}
-            </h1>
+          <!-- Header: list name + username + actions -->
+          <div class="d-flex align-center mb-2">
+            <div class="flex-grow-1">
+              <h1 class="text-h4 font-weight-bold">
+                {{ currentListName }}
+              </h1>
+              <div class="text-caption text-grey mt-1 hash-label">
+                /list/{{ listHash }}
+              </div>
+            </div>
+
+            <!-- Username chip -->
+            <v-chip
+                v-if="username"
+                color="primary"
+                variant="tonal"
+                size="small"
+                class="mr-2"
+            >
+              👤 {{ username }}
+            </v-chip>
+
+            <!-- Logout -->
             <v-btn
-                to="/settings"
+                v-if="username"
                 variant="text"
                 icon
                 color="grey-darken-2"
-                title="Einstellungen"
+                title="Abmelden"
+                @click="logout"
             >
+              🚪
+            </v-btn>
+
+            <!-- CouchDB sync status -->
+            <v-chip
+                :color="syncColor"
+                variant="tonal"
+                size="x-small"
+                class="mr-2"
+                :title="'CouchDB: ' + couchDbStatus"
+            >
+              {{ syncLabel }}
+            </v-chip>
+
+            <!-- Settings -->
+            <v-btn to="/settings" variant="text" icon color="grey-darken-2">
               ⚙️
             </v-btn>
           </div>
 
+          <v-chip color="grey-darken-1" variant="outlined" size="small" class="mb-4">
+            🌐 {{ totalListsCreated }} Liste{{ totalListsCreated === 1 ? '' : 'n' }} insgesamt erstellt
+          </v-chip>
+
           <v-row class="mb-4" dense>
             <v-col cols="12" sm="6">
               <v-text-field
-                  v-model="newItemName"
-                  label="Artikel Name"
+                  v-model="searchQuery"
+                  label="Suchen oder neu hinzufügen..."
                   variant="outlined"
                   density="comfortable"
                   hide-details
+                  prepend-inner-icon="🔍"
+                  clearable
                   @keyup.enter="addItem"
               ></v-text-field>
             </v-col>
@@ -41,13 +83,7 @@
               ></v-text-field>
             </v-col>
             <v-col cols="4" sm="3">
-              <v-btn
-                  color="grey-lighten-1"
-                  height="48"
-                  block
-                  elevation="1"
-                  @click="addItem"
-              >
+              <v-btn color="primary" height="48" block elevation="1" @click="addItem">
                 HINZUFÜGEN
               </v-btn>
             </v-col>
@@ -58,61 +94,53 @@
           <v-data-table
               :headers="headers"
               :items="shoppingList"
+              :search="searchQuery"
               class="elevation-0"
               hide-default-footer
           >
-            <template v-slot:item.actions="{ item }">
-              <div class="d-flex justify-end">
-                <v-btn
-                    variant="text"
-                    color="blue-grey"
-                    class="mr-2"
-                    icon
-                    @click="openEditDialog(item)"
+            <template v-slot:[`item.done`]="{ item }">
+              <div @click.stop>
+                <input
+                    type="checkbox"
+                    v-model="item.done"
+                    style="width: 20px; height: 20px; cursor: pointer;"
+                    @change="toggleDone(item)"
                 >
+              </div>
+            </template>
+
+            <template v-slot:[`item.name`]="{ item }">
+              <span :class="{ 'done-text': item.done }">
+                {{ item.name }}
+              </span>
+            </template>
+
+            <template v-slot:[`item.actions`]="{ item }">
+              <div class="d-flex justify-end">
+                <v-btn variant="text" color="blue-grey" class="mr-2" icon @click="openEditDialog(item)">
                   ✏️
                 </v-btn>
-                <v-btn
-                    variant="text"
-                    color="error"
-                    icon
-                    @click="removeItem(item.id)"
-                >
+                <v-btn variant="text" color="error" icon @click="removeItem(item.id)">
                   🗑️
                 </v-btn>
               </div>
             </template>
           </v-data-table>
 
-          <v-alert
-              v-if="shoppingList.length === 0"
-              type="info"
-              variant="tonal"
-              class="mt-4"
-          >
-            Lade Daten vom Server...
+          <v-alert v-if="shoppingList.length === 0" type="info" variant="tonal" class="mt-4">
+            Die Liste ist leer.
           </v-alert>
         </v-card>
       </v-col>
     </v-row>
 
+    <!-- Edit dialog -->
     <v-dialog v-model="editDialog" max-width="400" persistent>
       <v-card title="Artikel bearbeiten">
         <v-card-text>
-          <v-text-field
-              v-model="editModel.name"
-              label="Name"
-              variant="outlined"
-              class="mb-4"
-          ></v-text-field>
-
-          <v-text-field
-              v-model="editModel.menge"
-              label="Menge"
-              variant="outlined"
-          ></v-text-field>
+          <v-text-field v-model="editModel.name" label="Name" variant="outlined" class="mb-4"></v-text-field>
+          <v-text-field v-model="editModel.menge" label="Menge" variant="outlined"></v-text-field>
         </v-card-text>
-
         <v-card-actions>
           <v-spacer></v-spacer>
           <v-btn color="grey-darken-1" variant="text" @click="editDialog = false">Abbrechen</v-btn>
@@ -121,29 +149,34 @@
       </v-card>
     </v-dialog>
 
-    <!-- Name Entry Dialog -->
-    <v-dialog v-model="showNameDialog" persistent max-width="400">
-      <v-card title="Bitte Namen eingeben">
-        <v-card-text>
-          <p class="mb-4">Um die Einkaufsliste zu nutzen, gib bitte deinen Namen ein.</p>
+    <!-- Username dialog (shown if no cookie) -->
+    <v-dialog v-model="nameDialog" max-width="420" persistent>
+      <v-card>
+        <v-card-title class="text-h6 pt-6 pb-2 px-6">
+          👋 Willkommen bei CheckIT!
+        </v-card-title>
+        <v-card-subtitle class="px-6 pb-4">
+          Wie dürfen wir dich nennen? Dein Name wird als Cookie gespeichert (<code>checkit_username</code>).
+        </v-card-subtitle>
+        <v-card-text class="px-6">
           <v-text-field
-            v-model="nameInput"
-            label="Dein Name"
-            variant="outlined"
-            density="comfortable"
-            @keyup.enter="submitName"
-            autofocus
+              v-model="nameInput"
+              label="Dein Name"
+              variant="outlined"
+              autofocus
+              hide-details
+              @keyup.enter="saveName"
           ></v-text-field>
         </v-card-text>
-        <v-card-actions>
+        <v-card-actions class="px-6 pb-6">
           <v-spacer></v-spacer>
           <v-btn
-            color="primary"
-            variant="flat"
-            :disabled="!nameInput.trim()"
-            @click="submitName"
+              color="primary"
+              variant="elevated"
+              :disabled="!nameInput.trim()"
+              @click="saveName"
           >
-            Bestätigen
+            Los geht's!
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -151,119 +184,159 @@
   </v-container>
 </template>
 
-<script setup>
-import { ref, onMounted, computed } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import axios from 'axios';
+<script setup lang="ts">
+import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { useRoute } from 'vue-router';
+import { getListsCreated, getUsername, setUsername, clearUsername, couchDbStatus, listDb, type ListMeta, type ListItem } from '@/utils/listHash';
 
 const route = useRoute();
-const router = useRouter();
-const API_URL = 'http://localhost:3000/list';
 
-// State für neue Artikel
-const newItemName = ref('');
-const newItemMenge = ref('');
+const listHash = computed(() => route.params.hash as string ?? '');
+const currentListName = ref<string>('Einkaufsliste');
+const totalListsCreated = ref(0);
+const username  = ref<string | null>(null);
+const nameDialog = ref(false);
+const nameInput  = ref('');
 
-// State für Liste und Dialog
-const shoppingList = ref([]);
-const editDialog = ref(false);
-const selectedId = ref(null);
-const editModel = ref({ name: '', menge: '' });
+let listDoc: ListMeta | null = null;
+let changeListener: any = null;
 
-// Name Prompt Logic
-const showNameDialog = ref(false);
-const nameInput = ref('');
-
-// Titel der Liste aus der URL (query ?list=...) auslesen
-const currentListName = computed(() => {
-  return route.query.list || 'Meine Einkaufsliste';
+onMounted(async () => {
+  totalListsCreated.value = await getListsCreated();
+  username.value = getUsername();
+  if (!username.value) nameDialog.value = true;
+  await fetchItems();
+  
+  // listen for realtime updates
+  changeListener = listDb.changes({ 
+    since: 'now', 
+    live: true, 
+    include_docs: true,
+    doc_ids: [listHash.value]
+  }).on('change', (change) => {
+    if (change.id === listHash.value && change.doc) {
+      listDoc = change.doc as ListMeta;
+      currentListName.value = listDoc.name;
+      shoppingList.value = listDoc.items || [];
+    }
+  });
 });
 
-const headers = [
-  { title: 'Name', value: 'name', align: 'start', sortable: true },
-  { title: 'Menge', value: 'menge', align: 'start', sortable: true },
-  { title: 'Aktionen', value: 'actions', align: 'end', sortable: false },
-];
+onUnmounted(() => {
+  if (changeListener) changeListener.cancel();
+});
 
-// --- FUNKTIONEN ---
-
-const submitName = () => {
-  if (nameInput.value.trim()) {
-    router.replace({ query: { ...route.query, name: nameInput.value.trim() } });
-    showNameDialog.value = false;
-  }
+const saveName = () => {
+  const trimmed = nameInput.value.trim();
+  if (!trimmed) return;
+  setUsername(trimmed);
+  username.value = trimmed;
+  nameDialog.value = false;
 };
+
+const logout = () => {
+  clearUsername();
+  username.value = null;
+  nameInput.value = '';
+  nameDialog.value = true;
+};
+
+const syncLabel = computed(() => ({
+  connecting: '🔄 DB',
+  active:     '🟢 DB',
+  paused:     '⏸ DB',
+  error:      '🔴 DB',
+  disabled:   '⚫ DB',
+}[couchDbStatus.value]));
+
+const syncColor = computed(() => ({
+  connecting: 'grey',
+  active:     'success',
+  paused:     'warning',
+  error:      'error',
+  disabled:   'grey',
+}[couchDbStatus.value]));
+
+const searchQuery  = ref('');
+const newItemMenge = ref('');
+const shoppingList = ref<ListItem[]>([]);
+const editDialog   = ref(false);
+const selectedId   = ref<any>(null);
+const editModel    = ref<ListItem>({ id: '', name: '', menge: '', done: false });
+
+const headers = [
+  { title: 'Done',    key: 'done',    align: 'start' as const, sortable: false, width: '50px' },
+  { title: 'Artikel', key: 'name',    align: 'start' as const, sortable: true },
+  { title: 'Menge',   key: 'menge',   align: 'start' as const, sortable: true },
+  { title: 'Aktionen',key: 'actions', align: 'end'   as const, sortable: false },
+];
 
 const fetchItems = async () => {
   try {
-    const response = await axios.get(API_URL);
-    shoppingList.value = response.data;
-  } catch (error) {
-    console.warn('Backend offline - Nutze Demo-Daten');
-    shoppingList.value = [
-      { id: 1, name: 'Milch', menge: '2L' },
-      { id: 2, name: 'Brot', menge: '1 Laib' }
-    ];
+    listDoc = await listDb.get<ListMeta>(listHash.value);
+    currentListName.value = listDoc.name;
+    shoppingList.value = listDoc.items || [];
+  } catch (err: any) {
+    if (err.status !== 404) console.warn('[fetchItems]', err);
+  }
+};
+
+const saveItemsToDb = async () => {
+  if (!listDoc) return;
+  listDoc.items = [...shoppingList.value];
+  try {
+    const response = await listDb.put(listDoc);
+    listDoc._rev = response.rev;
+  } catch (err) {
+    console.warn('Save failed:', err);
+    // Reload state on conflict
+    await fetchItems();
   }
 };
 
 const addItem = async () => {
-  if (!newItemName.value) return;
-  const newItem = {
-    name: newItemName.value,
-    menge: newItemMenge.value || '1'
-  };
-
-  try {
-    const response = await axios.post(API_URL, newItem);
-    shoppingList.value.push(response.data);
-  } catch (e) {
-    // Lokal hinzufügen als Fallback
-    shoppingList.value.push({ id: Date.now(), ...newItem });
-  }
-
-  newItemName.value = '';
+  if (!searchQuery.value) return;
+  const newItem = { id: Date.now().toString(), name: searchQuery.value, menge: newItemMenge.value || '1', done: false };
+  shoppingList.value.push(newItem);
+  searchQuery.value  = '';
   newItemMenge.value = '';
+  await saveItemsToDb();
 };
 
-const removeItem = (id) => {
-  // Sofort lokal löschen für bessere Geschwindigkeit
+const toggleDone = async (item: ListItem) => {
+  await saveItemsToDb();
+};
+
+const removeItem = async (id: string | number) => {
   shoppingList.value = shoppingList.value.filter(item => item.id !== id);
-  axios.delete(`${API_URL}/${id}`).catch(e => console.error("Sync Fehler beim Löschen"));
+  await saveItemsToDb();
 };
 
-function openEditDialog(item) {
+function openEditDialog(item: ListItem) {
   selectedId.value = item.id;
-  editModel.value = { ...item }; // Kopie erstellen
+  editModel.value  = { ...item };
   editDialog.value = true;
 }
 
-const saveEdit = () => {
-  // 1. Fenster sofort schließen
+const saveEdit = async () => {
   editDialog.value = false;
-
-  // 2. Lokal in der Liste aktualisieren
   const index = shoppingList.value.findIndex(i => i.id === selectedId.value);
-  if (index !== -1) {
-    shoppingList.value[index] = { ...editModel.value };
-  }
-
-  // 3. Im Hintergrund an den Server senden
-  axios.put(`${API_URL}/${selectedId.value}`, editModel.value)
-      .catch(e => console.error("Sync Fehler beim Speichern"));
+  if (index !== -1) shoppingList.value[index] = { ...editModel.value };
+  await saveItemsToDb();
 };
-
-onMounted(() => {
-  if (!route.query.name) {
-    showNameDialog.value = true;
-  }
-  fetchItems();
-});
 </script>
 
 <style scoped>
-/* Scoped Styles für das Tabellen-Design */
-:deep(.v-data-table__tr:hover) {
-  background-color: #f5f5f5 !important;
+.done-text {
+  text-decoration: line-through !important;
+  color: grey !important;
+}
+input[type="checkbox"] {
+  accent-color: #4caf50;
+}
+.hash-label {
+  font-family: monospace;
+  font-size: 0.75rem;
+  word-break: break-all;
 }
 </style>

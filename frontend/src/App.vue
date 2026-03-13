@@ -3,8 +3,7 @@
     <v-main>
       <router-view />
     </v-main>
-
-    </v-app>
+  </v-app>
 </template>
 
 <script setup lang="ts">
