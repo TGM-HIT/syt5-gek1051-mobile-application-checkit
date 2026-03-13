@@ -15,8 +15,9 @@
               </div>
             </div>
 
-            <!-- CouchDB sync status -->
+            <!-- CouchDB sync status (debug only) -->
             <v-chip
+                v-if="debugMode"
                 :color="syncColor"
                 variant="tonal"
                 size="x-small"
