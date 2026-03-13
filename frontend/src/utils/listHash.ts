@@ -16,19 +16,40 @@ export const couchDbStatus = ref<'connecting' | 'active' | 'paused' | 'error' | 
     COUCHDB_URL ? 'connecting' : 'disabled'
 );
 
-if (COUCHDB_URL) {
-    // Sync stats — quiet, just log errors
-    statsDb.sync(`${COUCHDB_URL}/checkit_stats`, { live: true, retry: true })
-        .on('error', (err: unknown) => console.warn('[sync:stats]', err));
+/** Reactive flag indicating simulated offline mode (debug only). */
+export const simulatedOffline = ref(false);
 
-    // Sync lists — drive the status indicator
-    listDb.sync(`${COUCHDB_URL}/checkit_lists`, { live: true, retry: true })
+let listSync: ReturnType<typeof listDb.sync> | null = null;
+
+function startListSync() {
+    listSync = listDb.sync(`${COUCHDB_URL}/checkit_lists`, { live: true, retry: true })
         .on('active', () => { couchDbStatus.value = 'active'; })
         .on('paused', () => { couchDbStatus.value = 'paused'; })
         .on('error', (err: unknown) => {
             couchDbStatus.value = 'error';
             console.warn('[sync:lists]', err);
         });
+}
+
+if (COUCHDB_URL) {
+    statsDb.sync(`${COUCHDB_URL}/checkit_stats`, { live: true, retry: true })
+        .on('error', (err: unknown) => console.warn('[sync:stats]', err));
+    startListSync();
+}
+
+/** Toggle simulated offline mode (pauses/resumes CouchDB sync). */
+export function toggleOffline() {
+    if (!COUCHDB_URL) return;
+    if (simulatedOffline.value) {
+        simulatedOffline.value = false;
+        couchDbStatus.value = 'connecting';
+        startListSync();
+    } else {
+        simulatedOffline.value = true;
+        listSync?.cancel();
+        listSync = null;
+        couchDbStatus.value = 'disabled';
+    }
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────

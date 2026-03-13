@@ -49,6 +49,18 @@
               {{ syncLabel }}
             </v-chip>
 
+            <!-- Debug: offline toggle -->
+            <v-btn
+                v-if="debugMode"
+                :color="simulatedOffline ? 'error' : 'success'"
+                variant="tonal"
+                size="small"
+                class="mr-2"
+                @click="toggleOffline"
+            >
+              {{ simulatedOffline ? '🔴 Offline' : '🟢 Online' }}
+            </v-btn>
+
             <!-- Settings -->
             <v-btn to="/settings" variant="text" icon color="grey-darken-2">
               ⚙️
@@ -187,11 +199,12 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
-import { getListsCreated, getUsername, setUsername, clearUsername, couchDbStatus, listDb, type ListMeta, type ListItem } from '@/utils/listHash';
+import { getListsCreated, getUsername, setUsername, clearUsername, couchDbStatus, simulatedOffline, toggleOffline, listDb, type ListMeta, type ListItem } from '@/utils/listHash';
 
 const route = useRoute();
 
 const listHash = computed(() => route.params.hash as string ?? '');
+const debugMode = computed(() => route.query.debug === 'true');
 const currentListName = ref<string>('Einkaufsliste');
 const totalListsCreated = ref(0);
 const username  = ref<string | null>(null);
