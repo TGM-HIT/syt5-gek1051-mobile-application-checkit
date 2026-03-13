@@ -15,29 +15,6 @@
               </div>
             </div>
 
-            <!-- Username chip -->
-            <v-chip
-                v-if="username"
-                color="primary"
-                variant="tonal"
-                size="small"
-                class="mr-2"
-            >
-              👤 {{ username }}
-            </v-chip>
-
-            <!-- Logout -->
-            <v-btn
-                v-if="username"
-                variant="text"
-                icon
-                color="grey-darken-2"
-                title="Abmelden"
-                @click="logout"
-            >
-              🚪
-            </v-btn>
-
             <!-- CouchDB sync status -->
             <v-chip
                 :color="syncColor"
@@ -161,45 +138,14 @@
       </v-card>
     </v-dialog>
 
-    <!-- Username dialog (shown if no cookie) -->
-    <v-dialog v-model="nameDialog" max-width="420" persistent>
-      <v-card>
-        <v-card-title class="text-h6 pt-6 pb-2 px-6">
-          👋 Willkommen bei CheckIT!
-        </v-card-title>
-        <v-card-subtitle class="px-6 pb-4">
-          Wie dürfen wir dich nennen? Dein Name wird als Cookie gespeichert (<code>checkit_username</code>).
-        </v-card-subtitle>
-        <v-card-text class="px-6">
-          <v-text-field
-              v-model="nameInput"
-              label="Dein Name"
-              variant="outlined"
-              autofocus
-              hide-details
-              @keyup.enter="saveName"
-          ></v-text-field>
-        </v-card-text>
-        <v-card-actions class="px-6 pb-6">
-          <v-spacer></v-spacer>
-          <v-btn
-              color="primary"
-              variant="elevated"
-              :disabled="!nameInput.trim()"
-              @click="saveName"
-          >
-            Los geht's!
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
   </v-container>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
-import { getListsCreated, getUsername, setUsername, clearUsername, couchDbStatus, simulatedOffline, toggleOffline, listDb, type ListMeta, type ListItem } from '@/utils/listHash';
+import { getListsCreated, couchDbStatus, simulatedOffline, toggleOffline, listDb, type ListMeta, type ListItem } from '@/utils/listHash';
+import { currentUser } from '@/utils/auth';
 
 const route = useRoute();
 
@@ -207,17 +153,12 @@ const listHash = computed(() => route.params.hash as string ?? '');
 const debugMode = computed(() => route.query.debug === 'true');
 const currentListName = ref<string>('Einkaufsliste');
 const totalListsCreated = ref(0);
-const username  = ref<string | null>(null);
-const nameDialog = ref(false);
-const nameInput  = ref('');
 
 let listDoc: ListMeta | null = null;
 let changeListener: any = null;
 
 onMounted(async () => {
   totalListsCreated.value = await getListsCreated();
-  username.value = getUsername();
-  if (!username.value) nameDialog.value = true;
   await fetchItems();
   
   // listen for realtime updates
@@ -238,21 +179,6 @@ onMounted(async () => {
 onUnmounted(() => {
   if (changeListener) changeListener.cancel();
 });
-
-const saveName = () => {
-  const trimmed = nameInput.value.trim();
-  if (!trimmed) return;
-  setUsername(trimmed);
-  username.value = trimmed;
-  nameDialog.value = false;
-};
-
-const logout = () => {
-  clearUsername();
-  username.value = null;
-  nameInput.value = '';
-  nameDialog.value = true;
-};
 
 const syncLabel = computed(() => ({
   connecting: '🔄 DB',
