@@ -1,27 +1,13 @@
 describe('CheckIT Einkaufs-App - User Flow', () => {
 
-  // Vor jedem Test rufen wir die Startseite auf
-  // und fangen die API-Anfragen ab, damit der Test nicht vom echten Backend abhängt
+  // Auth-Cookie setzen, damit der Router-Guard für die Startseite nicht auf /login weiterleitet
   beforeEach(() => {
-    // WICHTIG: Port wieder auf 3000 gesetzt, da axios in deinem Vue-Code dorthin funkt!
-    // API GET abfangen und mit leeren Daten antworten
-    cy.intercept('GET', 'http://localhost:3000/list', {
-      statusCode: 200,
-      body: []
-    }).as('getItems');
-
-    // API POST abfangen
-    cy.intercept('POST', 'http://localhost:3000/list', (req) => {
-      req.reply({
-        statusCode: 201,
-        body: { id: Date.now(), ...req.body }
-      });
-    }).as('addItem');
-
-    cy.visit('/');
+    cy.setCookie('checkit_username', 'testuser');
   });
 
   it('1. Startseite: Erstellt eine neue Einkaufsliste', () => {
+    cy.visit('/');
+
     // Button anklicken, um das Eingabefeld zu öffnen
     cy.contains('Einkaufsliste erstellen').click();
 
@@ -31,17 +17,15 @@ describe('CheckIT Einkaufs-App - User Flow', () => {
     // Auf den "Los geht's!" Button klicken
     cy.contains("Los geht's!").click();
 
-    // Prüfen, ob die Weiterleitung geklappt hat und der Name oben steht
-    cy.url().should('include', '/list?list=Mein+Wocheneinkauf');
+    // Prüfen, ob die Weiterleitung zu einer Listen-Seite mit Hash geklappt hat
+    // (Die App navigiert jetzt zu /list/<hash> statt /list?list=...)
+    cy.url().should('include', '/list/');
     cy.contains('Mein Wocheneinkauf').should('be.visible');
   });
 
   it('2. Einkaufsliste: Fügt einen Artikel hinzu und löscht ihn wieder', () => {
-    // Direkter Sprung auf die Listen-Seite
-    cy.visit('/list?list=Party-Einkauf');
-    
-    // HIER IST DIE ÄNDERUNG: Wir geben Cypress bis zu 20 Sekunden (20000ms) Zeit
-    cy.wait('@getItems', { timeout: 20000 }); 
+    // Direkter Sprung auf eine Listen-Seite (Route ist jetzt /list/:hash)
+    cy.visit('/list/test-einkauf');
 
     // --- ARTIKEL HINZUFÜGEN ---
     // Vuetify hat hier zwei Textfelder nebeneinander: 0 = Name, 1 = Menge
@@ -49,33 +33,26 @@ describe('CheckIT Einkaufs-App - User Flow', () => {
     cy.get('input').eq(1).type('3 Packungen');
     cy.contains('HINZUFÜGEN').click();
 
-    // Warten auf den simulierten POST-Request
-    cy.wait('@addItem');
-
     // Prüfen, ob "Chips" und "3 Packungen" in der Tabelle stehen
     cy.contains('Chips').should('be.visible');
     cy.contains('3 Packungen').should('be.visible');
 
     // --- ARTIKEL ALS ERLEDIGT MARKIEREN ---
-    // API PUT abfangen
-    cy.intercept('PUT', 'http://localhost:3000/list/*').as('updateItem');
     cy.get('input[type="checkbox"]').check();
-    cy.wait('@updateItem');
 
     // --- ARTIKEL LÖSCHEN ---
-    cy.intercept('DELETE', 'http://localhost:3000/list/*').as('deleteItem');
-    cy.contains('🗑️').click();
-    cy.wait('@deleteItem');
+    // Der Löschen-Button verwendet jetzt das mdi-delete Icon (kein 🗑️ Emoji mehr)
+    cy.get('i.mdi-delete').click();
 
     // Prüfen, ob die Liste wieder den Leer-Status anzeigt
     cy.contains('Die Liste ist leer.').should('be.visible');
   });
 
   it('3. Einstellungen: Wechselt in die Einstellungen und leert den Cache', () => {
-    cy.visit('/list');
-    
-    // Auf das Zahnrad klicken
-    cy.contains('⚙️').click();
+    cy.visit('/list/test-einkauf');
+
+    // Auf den Einstellungen-Button klicken (mdi-cog Icon, kein ⚙️ Emoji mehr)
+    cy.get('a[href="/settings"]').click();
 
     // Prüfen ob wir in den Einstellungen sind
     cy.contains('Einstellungen').should('be.visible');
@@ -85,7 +62,7 @@ describe('CheckIT Einkaufs-App - User Flow', () => {
 
     // Prüfen ob die Snackbar mit der Erfolgsmeldung auftaucht
     cy.contains('Cache wurde geleert').should('exist');
-    
+
     // Zurück zur Liste klicken
     cy.contains('Fertig').click();
     cy.url().should('include', '/list');
