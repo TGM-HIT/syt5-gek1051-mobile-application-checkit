@@ -5,7 +5,7 @@ COPY gradlew .
 COPY gradle gradle
 COPY build.gradle settings.gradle ./
 COPY src src
-RUN ./gradlew bootJar -x test
+RUN chmod +x gradlew && ./gradlew bootJar -x test
 
 # run stage
 FROM eclipse-temurin:21-jre

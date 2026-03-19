@@ -48,6 +48,21 @@ In `docs/database.txt` wurde ein Schema mit `_id: AUTO_INCREMENT` skizziert. Bei
 
 *(Hinweis: Für sehr kollaborative Listen, bei denen viele Personen simultan Einträge anlegen, könnte es künftig besser sein, jeden Artikel als ein eigenes CouchDB-Dokument anzulegen. Für den Einstieg ist Arrays-Embedding aber vollkommen ausreichend).*
 
+## Debug-Modus (`?debug=true`)
+
+An jede Listen-URL kann der Query-Parameter `?debug=true` angehängt werden, um zusätzliche Entwicklerwerkzeuge einzublenden:
+
+```
+/list/<hash>?debug=true
+```
+
+Folgende Elemente werden nur im Debug-Modus angezeigt:
+
+- **🟢 Online / 🔴 Offline-Button:** Pausiert bzw. reaktiviert die CouchDB-Synchronisation manuell. Damit lässt sich das Offline-Verhalten der App testen, ohne die Netzwerkverbindung im Browser-DevTools trennen zu müssen.
+- **DB-Status-Chip:** Zeigt den aktuellen Sync-Status der PouchDB↔CouchDB-Verbindung an (`connecting`, `active`, `paused`, `error`, `disabled`).
+
+Im normalen Betrieb (`?debug=true` nicht gesetzt) sind diese Elemente vollständig ausgeblendet.
+
 ## Geplante Features: Time-restricted Codes
 
 Für das Teilen von Listen sind zukünftig "Time-restricted Codes" vorgesehen. Anstatt den gesamten, langen Listen-Hash teilen zu müssen, wird es möglich sein, temporäre Kurzcodes (voraussichtlich nur die **ersten 6 Zeichen** des Hashes) zu nutzen. Diese eignen sich gut zum Vorlesen oder Abschreiben am Screen und verfallen nach einer bestimmten Zeit aus Sicherheitsgründen.

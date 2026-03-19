@@ -15,31 +15,9 @@
               </div>
             </div>
 
-            <!-- Username chip -->
+            <!-- CouchDB sync status (debug only) -->
             <v-chip
-                v-if="username"
-                color="primary"
-                variant="tonal"
-                size="small"
-                class="mr-2"
-            >
-              👤 {{ username }}
-            </v-chip>
-
-            <!-- Logout -->
-            <v-btn
-                v-if="username"
-                variant="text"
-                icon
-                color="grey-darken-2"
-                title="Abmelden"
-                @click="logout"
-            >
-              🚪
-            </v-btn>
-
-            <!-- CouchDB sync status -->
-            <v-chip
+                v-if="debugMode"
                 :color="syncColor"
                 variant="tonal"
                 size="x-small"
@@ -49,14 +27,26 @@
               {{ syncLabel }}
             </v-chip>
 
-            <!-- Settings -->
-            <v-btn to="/settings" variant="text" icon color="grey-darken-2">
-              ⚙️
+            <!-- Debug: offline toggle -->
+            <v-btn
+                v-if="debugMode"
+                :color="simulatedOffline ? 'error' : 'success'"
+                variant="tonal"
+                size="small"
+                class="mr-2"
+                @click="toggleOffline"
+            >
+              <v-icon start>{{ simulatedOffline ? 'mdi-wifi-off' : 'mdi-wifi' }}</v-icon>
+              {{ simulatedOffline ? 'Offline' : 'Online' }}
             </v-btn>
+
+            <!-- Settings -->
+            <v-btn to="/settings" variant="text" icon="mdi-cog" color="grey-darken-2" />
           </div>
 
           <v-chip color="grey-darken-1" variant="outlined" size="small" class="mb-4">
-            🌐 {{ totalListsCreated }} Liste{{ totalListsCreated === 1 ? '' : 'n' }} insgesamt erstellt
+            <v-icon start>mdi-earth</v-icon>
+            {{ totalListsCreated }} Liste{{ totalListsCreated === 1 ? '' : 'n' }} insgesamt erstellt
           </v-chip>
 
           <v-row class="mb-4" dense>
@@ -67,7 +57,7 @@
                   variant="outlined"
                   density="comfortable"
                   hide-details
-                  prepend-inner-icon="🔍"
+                  prepend-inner-icon="mdi-magnify"
                   clearable
                   @keyup.enter="addItem"
               ></v-text-field>
@@ -117,12 +107,8 @@
 
             <template v-slot:[`item.actions`]="{ item }">
               <div class="d-flex justify-end">
-                <v-btn variant="text" color="blue-grey" class="mr-2" icon @click="openEditDialog(item)">
-                  ✏️
-                </v-btn>
-                <v-btn variant="text" color="error" icon @click="removeItem(item.id)">
-                  🗑️
-                </v-btn>
+                <v-btn variant="text" color="blue-grey" class="mr-2" icon="mdi-pencil" @click="openEditDialog(item)" />
+                <v-btn variant="text" color="error" icon="mdi-delete" @click="removeItem(item.id)" />
               </div>
             </template>
           </v-data-table>
@@ -149,62 +135,27 @@
       </v-card>
     </v-dialog>
 
-    <!-- Username dialog (shown if no cookie) -->
-    <v-dialog v-model="nameDialog" max-width="420" persistent>
-      <v-card>
-        <v-card-title class="text-h6 pt-6 pb-2 px-6">
-          👋 Willkommen bei CheckIT!
-        </v-card-title>
-        <v-card-subtitle class="px-6 pb-4">
-          Wie dürfen wir dich nennen? Dein Name wird als Cookie gespeichert (<code>checkit_username</code>).
-        </v-card-subtitle>
-        <v-card-text class="px-6">
-          <v-text-field
-              v-model="nameInput"
-              label="Dein Name"
-              variant="outlined"
-              autofocus
-              hide-details
-              @keyup.enter="saveName"
-          ></v-text-field>
-        </v-card-text>
-        <v-card-actions class="px-6 pb-6">
-          <v-spacer></v-spacer>
-          <v-btn
-              color="primary"
-              variant="elevated"
-              :disabled="!nameInput.trim()"
-              @click="saveName"
-          >
-            Los geht's!
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
   </v-container>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
-import { getListsCreated, getUsername, setUsername, clearUsername, couchDbStatus, listDb, type ListMeta, type ListItem } from '@/utils/listHash';
+import { getListsCreated, couchDbStatus, simulatedOffline, toggleOffline, listDb, type ListMeta, type ListItem } from '@/utils/listHash';
+import { currentUser } from '@/utils/auth';
 
 const route = useRoute();
 
 const listHash = computed(() => route.params.hash as string ?? '');
+const debugMode = computed(() => route.query.debug === 'true');
 const currentListName = ref<string>('Einkaufsliste');
 const totalListsCreated = ref(0);
-const username  = ref<string | null>(null);
-const nameDialog = ref(false);
-const nameInput  = ref('');
 
 let listDoc: ListMeta | null = null;
 let changeListener: any = null;
 
 onMounted(async () => {
   totalListsCreated.value = await getListsCreated();
-  username.value = getUsername();
-  if (!username.value) nameDialog.value = true;
   await fetchItems();
   
   // listen for realtime updates
@@ -226,27 +177,12 @@ onUnmounted(() => {
   if (changeListener) changeListener.cancel();
 });
 
-const saveName = () => {
-  const trimmed = nameInput.value.trim();
-  if (!trimmed) return;
-  setUsername(trimmed);
-  username.value = trimmed;
-  nameDialog.value = false;
-};
-
-const logout = () => {
-  clearUsername();
-  username.value = null;
-  nameInput.value = '';
-  nameDialog.value = true;
-};
-
 const syncLabel = computed(() => ({
-  connecting: '🔄 DB',
-  active:     '🟢 DB',
-  paused:     '⏸ DB',
-  error:      '🔴 DB',
-  disabled:   '⚫ DB',
+  connecting: 'DB connecting',
+  active:     'DB active',
+  paused:     'DB paused',
+  error:      'DB error',
+  disabled:   'DB disabled',
 }[couchDbStatus.value]));
 
 const syncColor = computed(() => ({
