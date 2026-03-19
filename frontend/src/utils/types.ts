@@ -5,6 +5,7 @@ export interface ListItem {
     name: string;
     menge: string;
     done: boolean;
+    category: string;
 }
 
 export interface ListMeta {

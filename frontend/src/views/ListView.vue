@@ -49,20 +49,35 @@
             {{ totalListsCreated }} Liste{{ totalListsCreated === 1 ? '' : 'n' }} insgesamt erstellt
           </v-chip>
 
+
           <v-row class="mb-4" dense>
-            <v-col cols="12" sm="6">
+            <v-col cols="12" sm="4">
               <v-text-field
                   v-model="searchQuery"
-                  label="Suchen oder neu hinzufügen..."
+                  label="Artikel..."
                   variant="outlined"
                   density="comfortable"
                   hide-details
-                  prepend-inner-icon="mdi-magnify"
-                  clearable
                   @keyup.enter="addItem"
               ></v-text-field>
             </v-col>
-            <v-col cols="8" sm="3">
+            <v-col cols="6" sm="3">
+              <v-select
+                  v-model="selectedCategory"
+                  :items="PRODUCT_CATEGORIES"
+                  item-title="label"
+                  item-value="id"
+                  label="Kategorie"
+                  variant="outlined"
+                  density="comfortable"
+                  hide-details
+              >
+                <template v-slot:item="{ props, item }">
+                  <v-list-item v-bind="props" :prepend-icon="item.raw.icon"></v-list-item>
+                </template>
+              </v-select>
+            </v-col>
+            <v-col cols="3" sm="2">
               <v-text-field
                   v-model="newItemMenge"
                   label="Menge"
@@ -72,9 +87,9 @@
                   @keyup.enter="addItem"
               ></v-text-field>
             </v-col>
-            <v-col cols="4" sm="3">
+            <v-col cols="3" sm="3">
               <v-btn color="primary" height="48" block elevation="1" @click="addItem">
-                HINZUFÜGEN
+                <v-icon>mdi-plus</v-icon>
               </v-btn>
             </v-col>
           </v-row>
@@ -85,6 +100,7 @@
               :headers="headers"
               :items="shoppingList"
               :search="searchQuery"
+              :group-by="[{ key: 'category', order: 'asc' }]"
               class="elevation-0"
               hide-default-footer
           >
@@ -100,12 +116,9 @@
             </template>
 
             <template v-slot:[`item.name`]="{ item }">
-              <div class="d-flex align-center">
-                <v-icon v-if="item.syncError" color="error" size="small" class="mr-1" title="Synchronisationsfehler">mdi-alert-circle</v-icon>
-                <span :class="{ 'done-text': item.done, 'error-text': item.syncError }">
-                  {{ item.name }}
-                </span>
-              </div>
+              <span :class="{ 'done-text': item.done }">
+                {{ item.name }}
+              </span>
             </template>
 
             <template v-slot:[`item.actions`]="{ item }">
@@ -122,15 +135,6 @@
         </v-card>
       </v-col>
     </v-row>
-
-    <!-- Error snackbar -->
-    <v-snackbar v-model="errorSnackbar" color="error" timeout="5000" location="bottom">
-      <v-icon start>mdi-alert-circle</v-icon>
-      {{ errorMessage }}
-      <template #actions>
-        <v-btn variant="text" @click="errorSnackbar = false">Schließen</v-btn>
-      </template>
-    </v-snackbar>
 
     <!-- Edit dialog -->
     <v-dialog v-model="editDialog" max-width="400" persistent>
@@ -151,10 +155,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
-import { getListsCreated, couchDbStatus, simulatedOffline, toggleOffline, listDb, lastSyncErrorMessage, type ListMeta, type ListItem } from '@/utils/listHash';
+import { getListsCreated, couchDbStatus, simulatedOffline, toggleOffline, listDb } from '@/utils/listHash';
+import type { ListItem, ListMeta } from '@/utils/types';
 import { currentUser } from '@/utils/auth';
+
+
 
 const route = useRoute();
 
@@ -162,6 +169,20 @@ const listHash = computed(() => route.params.hash as string ?? '');
 const debugMode = computed(() => route.query.debug === 'true');
 const currentListName = ref<string>('Einkaufsliste');
 const totalListsCreated = ref(0);
+
+// Ergänze dies oben bei deinen anderen Konstanten
+const PRODUCT_CATEGORIES = [
+  { id: 'produce', label: 'Obst & Gemüse', icon: 'mdi-carrot' },
+  { id: 'dairy',   label: 'Milchprodukte', icon: 'mdi-cheese' },
+  { id: 'bakery',  label: 'Backwaren',      icon: 'mdi-bread-slice' },
+  { id: 'meat',    label: 'Fleisch/Fisch',  icon: 'mdi-food-steak' },
+  { id: 'frozen',  label: 'Tiefkühl',       icon: 'mdi-snowflake' },
+  { id: 'drugstore', label: 'Drogerie',     icon: 'mdi-lipstick' },
+  { id: 'household', label: 'Haushalt',     icon: 'mdi-spray-bottle' },
+  { id: 'other',   label: 'Sonstiges',      icon: 'mdi-package-variant' }
+];
+
+const selectedCategory = ref('produce'); // Standardwert für neue Artikel
 
 let listDoc: ListMeta | null = null;
 let changeListener: any = null;
@@ -205,30 +226,12 @@ const syncColor = computed(() => ({
   disabled:   'grey',
 }[couchDbStatus.value]));
 
-const errorSnackbar = ref(false);
-const errorMessage  = ref('');
-
-function showError(msg: string) {
-  errorMessage.value  = msg;
-  errorSnackbar.value = true;
-}
-
-watch(couchDbStatus, (status) => {
-  if (status === 'error') {
-    showError('Synchronisation fehlgeschlagen. Bitte Verbindung prüfen.');
-  }
-});
-
-watch(lastSyncErrorMessage, (msg) => {
-  if (msg) showError(msg);
-});
-
 const searchQuery  = ref('');
 const newItemMenge = ref('');
 const shoppingList = ref<ListItem[]>([]);
 const editDialog   = ref(false);
 const selectedId   = ref<any>(null);
-const editModel    = ref<ListItem>({ id: '', name: '', menge: '', done: false });
+const editModel = ref<ListItem>({ id: '', name: '', menge: '', done: false, category: 'other' });
 
 const headers = [
   { title: 'Done',    key: 'done',    align: 'start' as const, sortable: false, width: '50px' },
@@ -247,41 +250,37 @@ const fetchItems = async () => {
   }
 };
 
-const saveItemsToDb = async (affectedId?: string | number) => {
+const saveItemsToDb = async () => {
   if (!listDoc) return;
   listDoc.items = [...shoppingList.value];
   try {
     const response = await listDb.put(listDoc);
     listDoc._rev = response.rev;
-    if (affectedId !== undefined) {
-      const item = shoppingList.value.find(i => i.id === affectedId);
-      if (item) item.syncError = false;
-    }
-  } catch (err: any) {
+  } catch (err) {
     console.warn('Save failed:', err);
-    if (affectedId !== undefined) {
-      const item = shoppingList.value.find(i => i.id === affectedId);
-      if (item) item.syncError = true;
-    }
-    const isConflict = err?.status === 409;
-    showError(isConflict
-      ? 'Konflikt beim Speichern. Die Liste wird neu geladen.'
-      : 'Speichern fehlgeschlagen. Bitte erneut versuchen.');
+    // Reload state on conflict
     await fetchItems();
   }
 };
 
 const addItem = async () => {
   if (!searchQuery.value) return;
-  const newItem = { id: Date.now().toString(), name: searchQuery.value, menge: newItemMenge.value || '1', done: false };
+  const newItem: ListItem = {
+    id: Date.now().toString(),
+    name: searchQuery.value,
+    menge: newItemMenge.value || '1',
+    done: false,
+    category: selectedCategory.value // WICHTIG: Damit die Auswahl gespeichert wird
+  };
   shoppingList.value.push(newItem);
-  searchQuery.value  = '';
+  searchQuery.value = '';
   newItemMenge.value = '';
-  await saveItemsToDb(newItem.id);
+  await saveItemsToDb();
 };
 
+
 const toggleDone = async (item: ListItem) => {
-  await saveItemsToDb(item.id);
+  await saveItemsToDb();
 };
 
 const removeItem = async (id: string | number) => {
@@ -299,7 +298,7 @@ const saveEdit = async () => {
   editDialog.value = false;
   const index = shoppingList.value.findIndex(i => i.id === selectedId.value);
   if (index !== -1) shoppingList.value[index] = { ...editModel.value };
-  await saveItemsToDb(selectedId.value);
+  await saveItemsToDb();
 };
 </script>
 
@@ -307,10 +306,6 @@ const saveEdit = async () => {
 .done-text {
   text-decoration: line-through !important;
   color: grey !important;
-}
-.error-text {
-  color: rgb(var(--v-theme-error)) !important;
-  font-weight: 500;
 }
 input[type="checkbox"] {
   accent-color: #4caf50;
