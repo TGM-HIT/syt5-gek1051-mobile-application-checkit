@@ -16,6 +16,9 @@ export const couchDbStatus = ref<'connecting' | 'active' | 'paused' | 'error' | 
     COUCHDB_URL ? 'connecting' : 'disabled'
 );
 
+/** Reactive sync error message (empty string when no error). */
+export const lastSyncErrorMessage = ref('');
+
 /** Reactive flag indicating simulated offline mode (debug only). */
 export const simulatedOffline = ref(false);
 
@@ -27,6 +30,7 @@ function startListSync() {
         .on('paused', () => { couchDbStatus.value = 'paused'; })
         .on('error', (err: unknown) => {
             couchDbStatus.value = 'error';
+            lastSyncErrorMessage.value = 'Synchronisation fehlgeschlagen. Bitte Verbindung prüfen.';
             console.warn('[sync:lists]', err);
         });
 }
@@ -65,6 +69,7 @@ export interface ListItem {
     name: string;
     menge: string;
     done: boolean;
+    syncError?: boolean;
 }
 
 export interface ListMeta {

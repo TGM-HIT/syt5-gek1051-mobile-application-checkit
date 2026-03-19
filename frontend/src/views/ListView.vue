@@ -100,9 +100,12 @@
             </template>
 
             <template v-slot:[`item.name`]="{ item }">
-              <span :class="{ 'done-text': item.done }">
-                {{ item.name }}
-              </span>
+              <div class="d-flex align-center">
+                <v-icon v-if="item.syncError" color="error" size="small" class="mr-1" title="Synchronisationsfehler">mdi-alert-circle</v-icon>
+                <span :class="{ 'done-text': item.done, 'error-text': item.syncError }">
+                  {{ item.name }}
+                </span>
+              </div>
             </template>
 
             <template v-slot:[`item.actions`]="{ item }">
@@ -119,6 +122,15 @@
         </v-card>
       </v-col>
     </v-row>
+
+    <!-- Error snackbar -->
+    <v-snackbar v-model="errorSnackbar" color="error" timeout="5000" location="bottom">
+      <v-icon start>mdi-alert-circle</v-icon>
+      {{ errorMessage }}
+      <template #actions>
+        <v-btn variant="text" @click="errorSnackbar = false">Schließen</v-btn>
+      </template>
+    </v-snackbar>
 
     <!-- Edit dialog -->
     <v-dialog v-model="editDialog" max-width="400" persistent>
@@ -139,9 +151,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { getListsCreated, couchDbStatus, simulatedOffline, toggleOffline, listDb, type ListMeta, type ListItem } from '@/utils/listHash';
+import { getListsCreated, couchDbStatus, simulatedOffline, toggleOffline, listDb, lastSyncErrorMessage, type ListMeta, type ListItem } from '@/utils/listHash';
 import { currentUser } from '@/utils/auth';
 
 const route = useRoute();
@@ -193,6 +205,24 @@ const syncColor = computed(() => ({
   disabled:   'grey',
 }[couchDbStatus.value]));
 
+const errorSnackbar = ref(false);
+const errorMessage  = ref('');
+
+function showError(msg: string) {
+  errorMessage.value  = msg;
+  errorSnackbar.value = true;
+}
+
+watch(couchDbStatus, (status) => {
+  if (status === 'error') {
+    showError('Synchronisation fehlgeschlagen. Bitte Verbindung prüfen.');
+  }
+});
+
+watch(lastSyncErrorMessage, (msg) => {
+  if (msg) showError(msg);
+});
+
 const searchQuery  = ref('');
 const newItemMenge = ref('');
 const shoppingList = ref<ListItem[]>([]);
@@ -217,15 +247,26 @@ const fetchItems = async () => {
   }
 };
 
-const saveItemsToDb = async () => {
+const saveItemsToDb = async (affectedId?: string | number) => {
   if (!listDoc) return;
   listDoc.items = [...shoppingList.value];
   try {
     const response = await listDb.put(listDoc);
     listDoc._rev = response.rev;
-  } catch (err) {
+    if (affectedId !== undefined) {
+      const item = shoppingList.value.find(i => i.id === affectedId);
+      if (item) item.syncError = false;
+    }
+  } catch (err: any) {
     console.warn('Save failed:', err);
-    // Reload state on conflict
+    if (affectedId !== undefined) {
+      const item = shoppingList.value.find(i => i.id === affectedId);
+      if (item) item.syncError = true;
+    }
+    const isConflict = err?.status === 409;
+    showError(isConflict
+      ? 'Konflikt beim Speichern. Die Liste wird neu geladen.'
+      : 'Speichern fehlgeschlagen. Bitte erneut versuchen.');
     await fetchItems();
   }
 };
@@ -236,11 +277,11 @@ const addItem = async () => {
   shoppingList.value.push(newItem);
   searchQuery.value  = '';
   newItemMenge.value = '';
-  await saveItemsToDb();
+  await saveItemsToDb(newItem.id);
 };
 
 const toggleDone = async (item: ListItem) => {
-  await saveItemsToDb();
+  await saveItemsToDb(item.id);
 };
 
 const removeItem = async (id: string | number) => {
@@ -258,7 +299,7 @@ const saveEdit = async () => {
   editDialog.value = false;
   const index = shoppingList.value.findIndex(i => i.id === selectedId.value);
   if (index !== -1) shoppingList.value[index] = { ...editModel.value };
-  await saveItemsToDb();
+  await saveItemsToDb(selectedId.value);
 };
 </script>
 
@@ -266,6 +307,10 @@ const saveEdit = async () => {
 .done-text {
   text-decoration: line-through !important;
   color: grey !important;
+}
+.error-text {
+  color: rgb(var(--v-theme-error)) !important;
+  font-weight: 500;
 }
 input[type="checkbox"] {
   accent-color: #4caf50;
