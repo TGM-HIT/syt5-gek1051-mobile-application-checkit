@@ -6,6 +6,7 @@ export interface ListItem {
     menge: string;
     done: boolean;
     category: string;
+    syncError?: boolean;
 }
 
 export interface ListMeta {
