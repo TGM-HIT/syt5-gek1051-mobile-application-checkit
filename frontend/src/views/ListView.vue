@@ -49,6 +49,23 @@
             {{ totalListsCreated }} Liste{{ totalListsCreated === 1 ? '' : 'n' }} insgesamt erstellt
           </v-chip>
 
+          <!-- Offline banner -->
+          <v-alert
+              v-if="effectivelyOffline"
+              type="warning"
+              variant="tonal"
+              density="compact"
+              icon="mdi-wifi-off"
+              class="mb-4"
+          >
+            Du bist offline.
+            <span v-if="pendingCount > 0">
+              {{ pendingCount }} Änderung{{ pendingCount === 1 ? '' : 'en' }} wird synchronisiert, sobald du wieder online bist.
+            </span>
+            <span v-else>
+              Neue Änderungen werden lokal gespeichert.
+            </span>
+          </v-alert>
 
           <v-row class="mb-4" dense>
             <v-col cols="12" sm="4">
@@ -116,9 +133,14 @@
             </template>
 
             <template v-slot:[`item.name`]="{ item }">
-              <span :class="{ 'done-text': item.done, 'sync-error-text': item.syncError }">
+              <span :class="{
+                'done-text':         item.done,
+                'sync-error-text':   item.syncError,
+                'sync-pending-text': !item.syncError && pendingItemIds.includes(String(item.id))
+              }">
                 {{ item.name }}
                 <v-icon v-if="item.syncError" color="error" size="small" title="Sync fehlgeschlagen">mdi-sync-alert</v-icon>
+                <v-icon v-else-if="pendingItemIds.includes(String(item.id))" color="warning" size="small" title="Ausstehende Synchronisierung">mdi-cloud-upload-outline</v-icon>
               </span>
             </template>
 
@@ -137,12 +159,12 @@
       </v-col>
     </v-row>
 
-    <!-- Sync error snackbar -->
-    <v-snackbar v-model="syncErrorSnackbar" color="error" timeout="5000" location="bottom">
-      <v-icon start>mdi-sync-alert</v-icon>
-      {{ syncErrorText }}
+    <!-- Status snackbar (error / warning / success) -->
+    <v-snackbar v-model="snackbarVisible" :color="snackbarColor" timeout="5000" location="bottom">
+      <v-icon start>{{ snackbarIcon }}</v-icon>
+      {{ snackbarText }}
       <template #actions>
-        <v-btn variant="text" @click="syncErrorSnackbar = false">Schließen</v-btn>
+        <v-btn variant="text" @click="snackbarVisible = false">Schließen</v-btn>
       </template>
     </v-snackbar>
 
@@ -167,7 +189,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { getListsCreated, couchDbStatus, simulatedOffline, toggleOffline, listDb, lastSyncErrorMessage } from '@/utils/listHash';
+import { getListsCreated, couchDbStatus, simulatedOffline, toggleOffline, listDb, lastSyncErrorMessage, isOffline } from '@/utils/listHash';
 import type { ListItem, ListMeta } from '@/utils/types';
 import { currentUser } from '@/utils/auth';
 
@@ -180,7 +202,9 @@ const debugMode = computed(() => route.query.debug === 'true');
 const currentListName = ref<string>('Einkaufsliste');
 const totalListsCreated = ref(0);
 
-// Ergänze dies oben bei deinen anderen Konstanten
+/** True when the user has no network connection (real or simulated). */
+const effectivelyOffline = computed(() => isOffline.value || simulatedOffline.value);
+
 const PRODUCT_CATEGORIES = [
   { id: 'Obst & Gemüse', label: 'Obst & Gemüse', icon: 'mdi-carrot' },
   { id: 'Milchprodukte',   label: 'Milchprodukte', icon: 'mdi-cheese' },
@@ -192,20 +216,59 @@ const PRODUCT_CATEGORIES = [
   { id: 'Sonstiges',   label: 'Sonstiges',      icon: 'mdi-package-variant' }
 ];
 
-//const selectedCategory = ref('produce');
 const selectedCategory = ref('Sonstiges');
 
 let listDoc: ListMeta | null = null;
 let changeListener: any = null;
 
+// ─── Pending sync tracking ────────────────────────────────────────────────────
+/** IDs of items changed while offline that haven't been confirmed synced yet. */
+const pendingItemIds = ref<string[]>([]);
+const pendingCount   = computed(() => pendingItemIds.value.length);
+
+// ─── Snackbar ─────────────────────────────────────────────────────────────────
+const snackbarVisible = ref(false);
+const snackbarText    = ref('');
+const snackbarColor   = ref<'error' | 'warning' | 'success'>('error');
+const snackbarIcon    = computed(() => ({
+  error:   'mdi-sync-alert',
+  warning: 'mdi-wifi-off',
+  success: 'mdi-check-circle',
+}[snackbarColor.value]));
+
+function showSnackbar(text: string, color: 'error' | 'warning' | 'success' = 'error') {
+  snackbarText.value  = text;
+  snackbarColor.value = color;
+  snackbarVisible.value = true;
+}
+
+// ─── Offline / online watcher ─────────────────────────────────────────────────
+watch(effectivelyOffline, (offline) => {
+  if (offline) {
+    showSnackbar('Kein Internet – Änderungen werden lokal gespeichert.', 'warning');
+  } else {
+    // Back online: PouchDB retries automatically; clear pending indicators
+    pendingItemIds.value = [];
+    showSnackbar('Wieder online – Synchronisierung läuft.', 'success');
+  }
+});
+
+// Forward sync errors from listHash to the snackbar
+watch(lastSyncErrorMessage, (msg) => {
+  if (msg) {
+    showSnackbar(msg, 'error');
+    lastSyncErrorMessage.value = '';
+  }
+});
+
 onMounted(async () => {
   totalListsCreated.value = await getListsCreated();
   await fetchItems();
-  
-  // listen for realtime updates
-  changeListener = listDb.changes({ 
-    since: 'now', 
-    live: true, 
+
+  // Listen for realtime updates (local + synced from remote)
+  changeListener = listDb.changes({
+    since: 'now',
+    live: true,
     include_docs: true,
     doc_ids: [listHash.value]
   }).on('change', (change) => {
@@ -244,17 +307,6 @@ const editDialog   = ref(false);
 const selectedId   = ref<any>(null);
 const editModel = ref<ListItem>({ id: '', name: '', menge: '', done: false, category: 'other' });
 
-const syncErrorSnackbar = ref(false);
-const syncErrorText = ref('');
-
-watch(lastSyncErrorMessage, (msg) => {
-  if (msg) {
-    syncErrorText.value = msg;
-    syncErrorSnackbar.value = true;
-    lastSyncErrorMessage.value = '';
-  }
-});
-
 const headers = [
   { title: 'Done',    key: 'done',    align: 'start' as const, sortable: false, width: '50px' },
   { title: 'Artikel', key: 'name',    align: 'start' as const, sortable: true },
@@ -278,20 +330,25 @@ const saveItemsToDb = async (changedItemId?: string) => {
   try {
     const response = await listDb.put(listDoc);
     listDoc._rev = response.rev;
-    // Clear syncError on success for the saved item
     if (changedItemId) {
       const idx = shoppingList.value.findIndex(i => i.id === changedItemId);
-      if (idx !== -1) shoppingList.value[idx] = { ...shoppingList.value[idx], syncError: false };
+      if (idx !== -1) {
+        shoppingList.value[idx] = { ...shoppingList.value[idx], syncError: false } as ListItem;
+      }
+      // Mark as pending if we're offline
+      if (effectivelyOffline.value) {
+        if (!pendingItemIds.value.includes(changedItemId)) {
+          pendingItemIds.value = [...pendingItemIds.value, changedItemId];
+        }
+      }
     }
   } catch (err) {
     console.warn('Save failed:', err);
-    // Mark affected item with syncError
     if (changedItemId) {
       const idx = shoppingList.value.findIndex(i => i.id === changedItemId);
-      if (idx !== -1) shoppingList.value[idx] = { ...shoppingList.value[idx], syncError: true };
+      if (idx !== -1) shoppingList.value[idx] = { ...shoppingList.value[idx], syncError: true } as ListItem;
     }
-    syncErrorText.value = 'Speichern fehlgeschlagen. Bitte Verbindung prüfen.';
-    syncErrorSnackbar.value = true;
+    showSnackbar('Speichern fehlgeschlagen. Bitte Verbindung prüfen.', 'error');
     await fetchItems();
   }
 };
@@ -311,12 +368,12 @@ const addItem = async () => {
   await saveItemsToDb(newItem.id);
 };
 
-
 const toggleDone = async (item: ListItem) => {
   await saveItemsToDb(item.id);
 };
 
 const removeItem = async (id: string | number) => {
+  pendingItemIds.value = pendingItemIds.value.filter(p => p !== String(id));
   shoppingList.value = shoppingList.value.filter(item => item.id !== id);
   await saveItemsToDb();
 };
@@ -350,5 +407,8 @@ input[type="checkbox"] {
 }
 .sync-error-text {
   color: rgb(var(--v-theme-error)) !important;
+}
+.sync-pending-text {
+  color: rgb(var(--v-theme-warning)) !important;
 }
 </style>

@@ -22,6 +22,11 @@ export const lastSyncErrorMessage = ref('');
 /** Reactive flag indicating simulated offline mode (debug only). */
 export const simulatedOffline = ref(false);
 
+/** Reactive flag indicating real browser network offline status. */
+export const isOffline = ref(!navigator.onLine);
+window.addEventListener('online',  () => { isOffline.value = false; });
+window.addEventListener('offline', () => { isOffline.value = true; });
+
 let listSync: ReturnType<typeof listDb.sync> | null = null;
 
 function startListSync() {
