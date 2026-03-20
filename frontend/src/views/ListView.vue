@@ -182,14 +182,14 @@ const totalListsCreated = ref(0);
 
 // Ergänze dies oben bei deinen anderen Konstanten
 const PRODUCT_CATEGORIES = [
-  { id: 'produce', label: 'Obst & Gemüse', icon: 'mdi-carrot' },
-  { id: 'dairy',   label: 'Milchprodukte', icon: 'mdi-cheese' },
-  { id: 'bakery',  label: 'Backwaren',      icon: 'mdi-bread-slice' },
-  { id: 'meat',    label: 'Fleisch/Fisch',  icon: 'mdi-food-steak' },
-  { id: 'frozen',  label: 'Tiefkühl',       icon: 'mdi-snowflake' },
-  { id: 'drugstore', label: 'Drogerie',     icon: 'mdi-lipstick' },
-  { id: 'household', label: 'Haushalt',     icon: 'mdi-spray-bottle' },
-  { id: 'other',   label: 'Sonstiges',      icon: 'mdi-package-variant' }
+  { id: 'Obst & Gemüse', label: 'Obst & Gemüse', icon: 'mdi-carrot' },
+  { id: 'Milchprodukte',   label: 'Milchprodukte', icon: 'mdi-cheese' },
+  { id: 'Backwaren',  label: 'Backwaren',      icon: 'mdi-bread-slice' },
+  { id: 'Fleisch/Fisch',    label: 'Fleisch/Fisch',  icon: 'mdi-food-steak' },
+  { id: 'Tiefkühl',  label: 'Tiefkühl',       icon: 'mdi-snowflake' },
+  { id: 'Drogerie', label: 'Drogerie',     icon: 'mdi-lipstick' },
+  { id: 'Haushalt', label: 'Haushalt',     icon: 'mdi-spray-bottle' },
+  { id: 'Sonstiges',   label: 'Sonstiges',      icon: 'mdi-package-variant' }
 ];
 
 const selectedCategory = ref('produce'); // Standardwert für neue Artikel
