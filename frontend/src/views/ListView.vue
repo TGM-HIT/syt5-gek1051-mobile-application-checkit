@@ -116,8 +116,9 @@
             </template>
 
             <template v-slot:[`item.name`]="{ item }">
-              <span :class="{ 'done-text': item.done }">
+              <span :class="{ 'done-text': item.done, 'sync-error-text': item.syncError }">
                 {{ item.name }}
+                <v-icon v-if="item.syncError" color="error" size="small" title="Sync fehlgeschlagen">mdi-sync-alert</v-icon>
               </span>
             </template>
 
@@ -135,6 +136,15 @@
         </v-card>
       </v-col>
     </v-row>
+
+    <!-- Sync error snackbar -->
+    <v-snackbar v-model="syncErrorSnackbar" color="error" timeout="5000" location="bottom">
+      <v-icon start>mdi-sync-alert</v-icon>
+      {{ syncErrorText }}
+      <template #actions>
+        <v-btn variant="text" @click="syncErrorSnackbar = false">Schließen</v-btn>
+      </template>
+    </v-snackbar>
 
     <!-- Edit dialog -->
     <v-dialog v-model="editDialog" max-width="400" persistent>
@@ -155,9 +165,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { getListsCreated, couchDbStatus, simulatedOffline, toggleOffline, listDb } from '@/utils/listHash';
+import { getListsCreated, couchDbStatus, simulatedOffline, toggleOffline, listDb, lastSyncErrorMessage } from '@/utils/listHash';
 import type { ListItem, ListMeta } from '@/utils/types';
 import { currentUser } from '@/utils/auth';
 
@@ -233,6 +243,17 @@ const editDialog   = ref(false);
 const selectedId   = ref<any>(null);
 const editModel = ref<ListItem>({ id: '', name: '', menge: '', done: false, category: 'other' });
 
+const syncErrorSnackbar = ref(false);
+const syncErrorText = ref('');
+
+watch(lastSyncErrorMessage, (msg) => {
+  if (msg) {
+    syncErrorText.value = msg;
+    syncErrorSnackbar.value = true;
+    lastSyncErrorMessage.value = '';
+  }
+});
+
 const headers = [
   { title: 'Done',    key: 'done',    align: 'start' as const, sortable: false, width: '50px' },
   { title: 'Artikel', key: 'name',    align: 'start' as const, sortable: true },
@@ -250,15 +271,26 @@ const fetchItems = async () => {
   }
 };
 
-const saveItemsToDb = async () => {
+const saveItemsToDb = async (changedItemId?: string) => {
   if (!listDoc) return;
   listDoc.items = [...shoppingList.value];
   try {
     const response = await listDb.put(listDoc);
     listDoc._rev = response.rev;
+    // Clear syncError on success for the saved item
+    if (changedItemId) {
+      const idx = shoppingList.value.findIndex(i => i.id === changedItemId);
+      if (idx !== -1) shoppingList.value[idx] = { ...shoppingList.value[idx], syncError: false };
+    }
   } catch (err) {
     console.warn('Save failed:', err);
-    // Reload state on conflict
+    // Mark affected item with syncError
+    if (changedItemId) {
+      const idx = shoppingList.value.findIndex(i => i.id === changedItemId);
+      if (idx !== -1) shoppingList.value[idx] = { ...shoppingList.value[idx], syncError: true };
+    }
+    syncErrorText.value = 'Speichern fehlgeschlagen. Bitte Verbindung prüfen.';
+    syncErrorSnackbar.value = true;
     await fetchItems();
   }
 };
@@ -275,12 +307,12 @@ const addItem = async () => {
   shoppingList.value.push(newItem);
   searchQuery.value = '';
   newItemMenge.value = '';
-  await saveItemsToDb();
+  await saveItemsToDb(newItem.id);
 };
 
 
 const toggleDone = async (item: ListItem) => {
-  await saveItemsToDb();
+  await saveItemsToDb(item.id);
 };
 
 const removeItem = async (id: string | number) => {
@@ -298,7 +330,7 @@ const saveEdit = async () => {
   editDialog.value = false;
   const index = shoppingList.value.findIndex(i => i.id === selectedId.value);
   if (index !== -1) shoppingList.value[index] = { ...editModel.value };
-  await saveItemsToDb();
+  await saveItemsToDb(selectedId.value);
 };
 </script>
 
@@ -314,5 +346,8 @@ input[type="checkbox"] {
   font-family: monospace;
   font-size: 0.75rem;
   word-break: break-all;
+}
+.sync-error-text {
+  color: rgb(var(--v-theme-error)) !important;
 }
 </style>
