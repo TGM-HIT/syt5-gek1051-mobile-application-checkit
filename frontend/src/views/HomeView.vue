@@ -4,9 +4,11 @@
       <v-col cols="12" md="10" lg="8">
 
         <!-- Create list card -->
-        <v-card elevation="4" rounded="lg" class="pa-8 text-center mb-6">
-          <h1 class="text-h2 text-success mb-6">
-            <v-icon size="48" color="success">mdi-checkbox-marked</v-icon> CheckIT
+        <v-card elevation="4" rounded="lg" class="pa-4 pa-sm-8 text-center mb-6">
+          <h1 class="text-h4 text-sm-h2 text-success mb-4 mb-sm-6">
+            <v-icon size="36" color="success" class="d-sm-none">mdi-checkbox-marked</v-icon>
+            <v-icon size="48" color="success" class="d-none d-sm-inline">mdi-checkbox-marked</v-icon>
+            CheckIT
           </h1>
 
           <v-chip v-if="totalListsCreated > 0" color="grey-darken-1" variant="outlined" class="mb-6">
