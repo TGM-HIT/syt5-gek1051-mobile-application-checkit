@@ -91,4 +91,29 @@ describe('CheckIT Einkaufs-App - User Flow', () => {
     cy.url().should('include', '/list');
   });
 
+  //Kategorien Test
+  it('4. Kategorien: Prüft die automatische Zuordnung und manuelle Auswahl', () => {
+      cy.visit('/list/test-hash-123');
+
+      //Automatische Zuordnung zu Sonstiges
+      cy.get('input').eq(0).type('Batterien');
+      cy.get('input').eq(2).type('4 Stück');
+      cy.contains('mdi-plus').parent().click();
+
+      cy.contains('Sonstiges').should('be.visible');
+      cy.contains('Batterien').should('be.visible');
+
+      // Manuelle Auswahl Obst & Gemüse
+      cy.get('input').eq(0).clear().type('Apfel');
+
+      cy.get('.v-select').click();
+      cy.get('.v-overlay-container').contains('Obst & Gemüse').click();
+
+      cy.get('input').eq(2).clear().type('5');
+      cy.contains('mdi-plus').parent().click();
+
+      cy.contains('Obst & Gemüse').should('be.visible');
+      cy.contains('Apfel').should('be.visible');
+    });
+
 });
