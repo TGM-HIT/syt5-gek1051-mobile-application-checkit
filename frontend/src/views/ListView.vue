@@ -2,12 +2,12 @@
   <v-container class="fill-height" fluid>
     <v-row justify="center">
       <v-col cols="12" md="10" lg="8">
-        <v-card elevation="3" class="pa-4">
+        <v-card elevation="3" class="pa-2 pa-sm-4">
 
           <!-- Header: list name + username + actions -->
           <div class="d-flex align-center mb-2">
-            <div class="flex-grow-1">
-              <h1 class="text-h4 font-weight-bold">
+            <div class="flex-grow-1 min-width-0">
+              <h1 class="text-h5 text-sm-h4 font-weight-bold text-truncate">
                 {{ currentListName }}
               </h1>
               <div class="text-caption text-grey mt-1 hash-label">
@@ -67,8 +67,9 @@
             </span>
           </v-alert>
 
+          <!-- Add item form -->
           <v-row class="mb-4" dense>
-            <v-col cols="12" sm="4">
+            <v-col cols="12" sm="6" md="3">
               <v-text-field
                   v-model="searchQuery"
                   label="Artikel..."
@@ -78,7 +79,7 @@
                   @keyup.enter="addItem"
               ></v-text-field>
             </v-col>
-            <v-col cols="6" sm="3">
+            <v-col cols="6" sm="6" md="2">
               <v-select
                   v-model="selectedCategory"
                   :items="PRODUCT_CATEGORIES"
@@ -94,7 +95,7 @@
                 </template>
               </v-select>
             </v-col>
-            <v-col cols="3" sm="2">
+            <v-col cols="3" sm="4" md="2">
               <v-text-field
                   v-model="newItemMenge"
                   label="Menge"
@@ -104,21 +105,38 @@
                   @keyup.enter="addItem"
               ></v-text-field>
             </v-col>
-            <v-col cols="3" sm="3">
+            <v-col cols="3" sm="4" md="2">
+              <v-text-field
+                  v-model="newItemPreis"
+                  label="Preis (€)"
+                  variant="outlined"
+                  density="comfortable"
+                  hide-details
+                  @keyup.enter="addItem"
+              ></v-text-field>
+            </v-col>
+            <v-col cols="6" sm="2" md="1">
               <v-btn color="primary" height="48" block elevation="1" @click="addItem">
                 <v-icon>mdi-plus</v-icon>
               </v-btn>
             </v-col>
+            <v-col cols="6" sm="2" md="2">
+              <v-btn color="secondary" height="48" block elevation="1" @click="scanDialog = true">
+                <v-icon start>mdi-camera</v-icon>
+                Scan
+              </v-btn>
+            </v-col>
           </v-row>
 
-          <v-divider class="mb-6"></v-divider>
+          <v-divider class="mb-4"></v-divider>
 
+          <!-- Desktop: data table -->
           <v-data-table
               :headers="headers"
               :items="shoppingList"
               :search="searchQuery"
               :group-by="[{ key: 'category', order: 'asc' }]"
-              class="elevation-0"
+              class="elevation-0 d-none d-sm-block"
               hide-default-footer
           >
             <template v-slot:[`item.done`]="{ item }">
@@ -144,13 +162,57 @@
               </span>
             </template>
 
+            <template v-slot:[`item.preis`]="{ item }">
+              <span v-if="item.preis">€ {{ item.preis }}</span>
+            </template>
+
             <template v-slot:[`item.actions`]="{ item }">
               <div class="d-flex justify-end">
-                <v-btn variant="text" color="blue-grey" class="mr-2" icon="mdi-pencil" @click="openEditDialog(item)" />
-                <v-btn variant="text" color="error" icon="mdi-delete" @click="removeItem(item.id)" />
+                <v-btn variant="text" color="blue-grey" class="mr-2" icon="mdi-pencil" size="small" @click="openEditDialog(item)" />
+                <v-btn variant="text" color="error" icon="mdi-delete" size="small" @click="removeItem(item.id)" />
               </div>
             </template>
           </v-data-table>
+
+          <!-- Mobile: card list -->
+          <div class="d-sm-none">
+            <v-list v-if="shoppingList.length > 0" lines="two" class="pa-0">
+              <template v-for="(item, idx) in filteredList" :key="item.id">
+                <v-list-item :class="{ 'item-done': item.done }">
+                  <template v-slot:prepend>
+                    <input
+                        type="checkbox"
+                        v-model="item.done"
+                        style="width: 22px; height: 22px; cursor: pointer; margin-right: 12px;"
+                        @change="toggleDone(item)"
+                    >
+                  </template>
+
+                  <v-list-item-title :class="{
+                    'done-text':         item.done,
+                    'sync-error-text':   item.syncError,
+                    'sync-pending-text': !item.syncError && pendingItemIds.includes(String(item.id))
+                  }">
+                    {{ item.name }}
+                    <v-icon v-if="item.syncError" color="error" size="x-small">mdi-sync-alert</v-icon>
+                    <v-icon v-else-if="pendingItemIds.includes(String(item.id))" color="warning" size="x-small">mdi-cloud-upload-outline</v-icon>
+                  </v-list-item-title>
+
+                  <v-list-item-subtitle>
+                    <v-chip size="x-small" variant="tonal" class="mr-1">{{ item.category }}</v-chip>
+                    <span class="text-caption">{{ item.menge }}</span>
+                    <span v-if="item.preis" class="text-caption ml-2 font-weight-bold">€ {{ item.preis }}</span>
+                  </v-list-item-subtitle>
+
+                  <template v-slot:append>
+                    <v-btn variant="text" color="blue-grey" icon="mdi-pencil" size="x-small" density="comfortable" @click="openEditDialog(item)" />
+                    <v-btn variant="text" color="error" icon="mdi-delete" size="x-small" density="comfortable" @click="removeItem(item.id)" />
+                  </template>
+                </v-list-item>
+                <v-divider v-if="idx < filteredList.length - 1" />
+              </template>
+            </v-list>
+          </div>
 
           <v-alert v-if="shoppingList.length === 0" type="info" variant="tonal" class="mt-4">
             Die Liste ist leer.
@@ -173,7 +235,8 @@
       <v-card title="Artikel bearbeiten">
         <v-card-text>
           <v-text-field v-model="editModel.name" label="Name" variant="outlined" class="mb-4"></v-text-field>
-          <v-text-field v-model="editModel.menge" label="Menge" variant="outlined"></v-text-field>
+          <v-text-field v-model="editModel.menge" label="Menge" variant="outlined" class="mb-4"></v-text-field>
+          <v-text-field v-model="editModel.preis" label="Preis (€)" variant="outlined"></v-text-field>
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
@@ -182,6 +245,9 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- Price tag scan dialog -->
+    <PriceTagScanDialog v-model="scanDialog" @scanned="onScanned" />
 
   </v-container>
 </template>
@@ -192,6 +258,7 @@ import { useRoute } from 'vue-router';
 import { getListsCreated, couchDbStatus, simulatedOffline, toggleOffline, listDb, lastSyncErrorMessage, isOffline } from '@/utils/listHash';
 import type { ListItem, ListMeta } from '@/utils/types';
 import { currentUser } from '@/utils/auth';
+import PriceTagScanDialog from '@/components/PriceTagScanDialog.vue';
 
 
 
@@ -302,15 +369,25 @@ const syncColor = computed(() => ({
 
 const searchQuery  = ref('');
 const newItemMenge = ref('');
+const newItemPreis = ref('');
 const shoppingList = ref<ListItem[]>([]);
 const editDialog   = ref(false);
+const scanDialog   = ref(false);
 const selectedId   = ref<any>(null);
 const editModel = ref<ListItem>({ id: '', name: '', menge: '', done: false, category: 'other' });
+
+/** Filtered list for mobile view (respects search query). */
+const filteredList = computed(() => {
+  if (!searchQuery.value) return shoppingList.value;
+  const q = searchQuery.value.toLowerCase();
+  return shoppingList.value.filter(i => i.name.toLowerCase().includes(q));
+});
 
 const headers = [
   { title: 'Done',    key: 'done',    align: 'start' as const, sortable: false, width: '50px' },
   { title: 'Artikel', key: 'name',    align: 'start' as const, sortable: true },
   { title: 'Menge',   key: 'menge',   align: 'start' as const, sortable: true },
+  { title: 'Preis',   key: 'preis',   align: 'start' as const, sortable: true },
   { title: 'Aktionen',key: 'actions', align: 'end'   as const, sortable: false },
 ];
 
@@ -359,13 +436,20 @@ const addItem = async () => {
     id: Date.now().toString(),
     name: searchQuery.value,
     menge: newItemMenge.value || '1',
+    preis: newItemPreis.value || undefined,
     done: false,
     category: selectedCategory.value || 'Sonstiges'
   };
   shoppingList.value.push(newItem);
   searchQuery.value = '';
   newItemMenge.value = '';
+  newItemPreis.value = '';
   await saveItemsToDb(newItem.id);
+};
+
+const onScanned = (data: { name: string; preis: string }) => {
+  searchQuery.value = data.name;
+  newItemPreis.value = data.preis;
 };
 
 const toggleDone = async (item: ListItem) => {
@@ -397,6 +481,9 @@ const saveEdit = async () => {
   text-decoration: line-through !important;
   color: grey !important;
 }
+.item-done {
+  opacity: 0.6;
+}
 input[type="checkbox"] {
   accent-color: #4caf50;
 }
@@ -404,6 +491,9 @@ input[type="checkbox"] {
   font-family: monospace;
   font-size: 0.75rem;
   word-break: break-all;
+}
+.min-width-0 {
+  min-width: 0;
 }
 .sync-error-text {
   color: rgb(var(--v-theme-error)) !important;
