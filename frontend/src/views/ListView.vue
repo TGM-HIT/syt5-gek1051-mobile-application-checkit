@@ -40,6 +40,8 @@
               {{ simulatedOffline ? 'Offline' : 'Online' }}
             </v-btn>
 
+            <!-- Share -->
+            <v-btn variant="text" icon="mdi-share-variant" color="primary" @click="generateInvite" />
             <!-- Settings -->
             <v-btn to="/settings" variant="text" icon="mdi-cog" color="grey-darken-2" />
           </div>
@@ -249,13 +251,49 @@
     <!-- Price tag scan dialog -->
     <PriceTagScanDialog v-model="scanDialog" @scanned="onScanned" />
 
+    <!-- Invite code dialog -->
+    <v-dialog v-model="inviteDialog" max-width="450">
+      <v-card title="Liste teilen">
+        <v-card-text>
+          <!-- Invite code -->
+          <p class="text-body-2 mb-2">Einladungscode:</p>
+          <div class="invite-code-box text-body-1 font-weight-bold text-primary pa-3 rounded mb-1">
+            {{ inviteCode }}
+          </div>
+          <p class="text-caption text-grey mb-3">Gültig für 24 Stunden</p>
+          <v-btn variant="tonal" color="primary" block prepend-icon="mdi-content-copy" class="mb-4" @click="copyInviteCode">
+            Code kopieren
+          </v-btn>
+
+          <v-divider class="mb-4" />
+
+          <!-- Direct link -->
+          <p class="text-body-2 mb-2">Oder direkter Link:</p>
+          <v-text-field
+              :model-value="shareLink"
+              variant="outlined"
+              density="compact"
+              readonly
+              hide-details
+              append-inner-icon="mdi-content-copy"
+              @click:append-inner="copyShareLink"
+              @focus="$event.target.select()"
+          />
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn color="grey-darken-1" variant="text" @click="inviteDialog = false">Schließen</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
   </v-container>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { getListsCreated, couchDbStatus, simulatedOffline, toggleOffline, listDb, lastSyncErrorMessage, isOffline } from '@/utils/listHash';
+import { getListsCreated, couchDbStatus, simulatedOffline, toggleOffline, listDb, lastSyncErrorMessage, isOffline, createInviteCode, formatInviteCode } from '@/utils/listHash';
 import type { ListItem, ListMeta } from '@/utils/types';
 import { currentUser } from '@/utils/auth';
 import PriceTagScanDialog from '@/components/PriceTagScanDialog.vue';
@@ -373,6 +411,8 @@ const newItemPreis = ref('');
 const shoppingList = ref<ListItem[]>([]);
 const editDialog   = ref(false);
 const scanDialog   = ref(false);
+const inviteDialog  = ref(false);
+const inviteCode    = ref('');
 const selectedId   = ref<any>(null);
 const editModel = ref<ListItem>({ id: '', name: '', menge: '', done: false, category: 'other' });
 
@@ -452,6 +492,35 @@ const onScanned = (data: { name: string; preis: string }) => {
   newItemPreis.value = data.preis;
 };
 
+const generateInvite = () => {
+  const raw = createInviteCode(listHash.value);
+  inviteCode.value = formatInviteCode(raw);
+  inviteDialog.value = true;
+};
+
+const shareLink = computed(() => {
+  const base = window.location.origin + (import.meta.env.BASE_URL || '/');
+  return `${base}list/${listHash.value}`;
+});
+
+const copyInviteCode = async () => {
+  try {
+    await navigator.clipboard.writeText(inviteCode.value);
+    showSnackbar('Code kopiert!', 'success');
+  } catch {
+    showSnackbar('Kopieren fehlgeschlagen.', 'error');
+  }
+};
+
+const copyShareLink = async () => {
+  try {
+    await navigator.clipboard.writeText(shareLink.value);
+    showSnackbar('Link kopiert!', 'success');
+  } catch {
+    showSnackbar('Kopieren fehlgeschlagen.', 'error');
+  }
+};
+
 const toggleDone = async (item: ListItem) => {
   await saveItemsToDb(item.id);
 };
@@ -500,5 +569,12 @@ input[type="checkbox"] {
 }
 .sync-pending-text {
   color: rgb(var(--v-theme-warning)) !important;
+}
+.invite-code-box {
+  font-family: monospace;
+  letter-spacing: 0.15em;
+  background: rgba(var(--v-theme-primary), 0.08);
+  text-align: center;
+  word-break: break-all;
 }
 </style>

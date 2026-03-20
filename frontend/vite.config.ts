@@ -7,7 +7,6 @@ import { nodePolyfills } from 'vite-plugin-node-polyfills'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: process.env.GITHUB_PAGES ? '/syt5-gek1051-mobile-application-checkit/' : '/',
   plugins: [
     vue(),
     vueDevTools(),
