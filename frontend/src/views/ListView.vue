@@ -192,7 +192,8 @@ const PRODUCT_CATEGORIES = [
   { id: 'Sonstiges',   label: 'Sonstiges',      icon: 'mdi-package-variant' }
 ];
 
-const selectedCategory = ref('produce'); // Standardwert für neue Artikel
+//const selectedCategory = ref('produce');
+const selectedCategory = ref('Sonstiges');
 
 let listDoc: ListMeta | null = null;
 let changeListener: any = null;
@@ -302,7 +303,7 @@ const addItem = async () => {
     name: searchQuery.value,
     menge: newItemMenge.value || '1',
     done: false,
-    category: selectedCategory.value // WICHTIG: Damit die Auswahl gespeichert wird
+    category: selectedCategory.value || 'Sonstiges'
   };
   shoppingList.value.push(newItem);
   searchQuery.value = '';
