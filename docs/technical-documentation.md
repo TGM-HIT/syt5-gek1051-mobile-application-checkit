@@ -7,6 +7,29 @@
 ## Story 2 – Artikel hinzufügen und suchen
 
 > Als Benutzer möchte ich neue Artikel zu meiner Liste hinzufügen können und auch in der Liste danach Suchen.
+### Technische Umsetzung
+
+Die Umsetzung erfolgt durch eine reaktive Verknüpfung der Eingabefelder mit dem lokalen State und der PouchDB.
+
+1. Reaktivität & Suche:
+Das zentrale Eingabefeld ist per v-model an searchQuery gebunden. Diese Variable erfüllt eine Doppelfunktion:
+
+    Suche: Eine computed property namens filteredList filtert das shoppingList-Array in Echtzeit:
+    TypeScript
+   
+    ```
+    const filteredList = computed(() => {
+      if (!searchQuery.value) return shoppingList.value;
+      const q = searchQuery.value.toLowerCase();
+      return shoppingList.value.filter(i => i.name.toLowerCase().includes(q));
+    });
+    ```
+   
+    Hinzufügen: Beim Drücken der Enter-Taste oder des Plus-Buttons wird der Inhalt von searchQuery als Name für den neuen Artikel verwendet.
+
+3. Artikel-Erstellung (addItem):
+Ein neuer Artikel wird als Objekt vom Typ ListItem erstellt. Hierbei werden auch die Felder für Menge, Preis und Kategorie (selectedCategory) ausgelesen. Jeder Artikel erhält eine eindeutige ID via Date.now().toString(). Nach dem Hinzufügen zum Array wird das Feld geleert, um sofort für die nächste Suche bereit zu sein.
+
 
 ## Story 3 – Artikel entfernen
 
@@ -158,6 +181,8 @@ Beide klicken **OK**. Wenn Anna oder Clara mit Bens Entscheidung nicht einversta
 ## Story 11 – Dokumentation und Issue-Verwaltung
 
 > Als Product Owner möchte ich eine übersichtliche Dokumentation und Issue verwaltung sicherstellen, um den Erfolg des Projekts zu garantieren.
+
+Zur Überwachung und Übersicht wurde ein Kanban Board in Github erstellt. Dort gibt es die Lanes ToDo, In Progress, Test, Review, Done.
 
 ## Story 12 – Einladungscode generieren
 
