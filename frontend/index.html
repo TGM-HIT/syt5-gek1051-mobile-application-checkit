@@ -10,6 +10,16 @@
     <div id="app"></div>
     <script>
       window.global = window;
+      // SPA redirect for GitHub Pages: restore path from 404.html redirect
+      (function () {
+        var q = new URLSearchParams(window.location.search);
+        var p = q.get('p');
+        if (p) {
+          q.delete('p');
+          var qs = q.toString();
+          history.replaceState(null, '', p + (qs ? '?' + qs : ''));
+        }
+      })();
     </script>
     <script type="module" src="/src/main.ts"></script>
   </body>

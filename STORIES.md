@@ -39,7 +39,7 @@
 
 ## Zusammenfassung
 
-Stepanek: 25 SP  
-Maurer: 25 SP  
-Bayerl: 25 SP  
+Stepanek: 25 SP
+Maurer: 25 SP
+Bayerl: 25 SP
 Jeindl: 25 SP

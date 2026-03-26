@@ -23,7 +23,7 @@ import { isLoggedIn } from './utils/auth'
 const vuetify = createVuetify({ components, directives })
 
 const routes: Array<RouteRecordRaw> = [
-  { path: '/',          name: 'Home',     component: HomeView,     meta: { requiresAuth: true } },
+  { path: '/',          name: 'Home',     component: HomeView },
   { path: '/list/:hash',name: 'ListView', component: ListView },
   { path: '/settings',  name: 'Settings', component: SettingsView },
   { path: '/login',     name: 'Login',    component: LoginView },
@@ -31,7 +31,7 @@ const routes: Array<RouteRecordRaw> = [
 ]
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes,
 })
 

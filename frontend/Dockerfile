@@ -1,7 +1,7 @@
 # build stage
 FROM node:20-alpine AS build
 WORKDIR /frontend
-COPY package.json yarn.lock ./
+COPY package.json ./
 RUN yarn install
 COPY . .
 ARG VITE_COUCHDB_URL

@@ -16,8 +16,16 @@ export const couchDbStatus = ref<'connecting' | 'active' | 'paused' | 'error' | 
     COUCHDB_URL ? 'connecting' : 'disabled'
 );
 
+/** Reactive sync error message (empty string when no error). */
+export const lastSyncErrorMessage = ref('');
+
 /** Reactive flag indicating simulated offline mode (debug only). */
 export const simulatedOffline = ref(false);
+
+/** Reactive flag indicating real browser network offline status. */
+export const isOffline = ref(!navigator.onLine);
+window.addEventListener('online',  () => { isOffline.value = false; });
+window.addEventListener('offline', () => { isOffline.value = true; });
 
 let listSync: ReturnType<typeof listDb.sync> | null = null;
 
@@ -27,6 +35,7 @@ function startListSync() {
         .on('paused', () => { couchDbStatus.value = 'paused'; })
         .on('error', (err: unknown) => {
             couchDbStatus.value = 'error';
+            lastSyncErrorMessage.value = 'Synchronisation fehlgeschlagen. Bitte Verbindung prüfen.';
             console.warn('[sync:lists]', err);
         });
 }
@@ -65,6 +74,7 @@ export interface ListItem {
     name: string;
     menge: string;
     done: boolean;
+    syncError?: boolean;
 }
 
 export interface ListMeta {
@@ -191,6 +201,72 @@ export async function getListName(hash: string): Promise<string | null> {
         if (err.status === 404) return null;
         throw err;
     }
+}
+
+// ─── Invite codes (self-contained, no DB lookup needed) ─────────────────────
+
+const INVITE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // 32 chars, no I/O/0/1
+const INVITE_EXPIRY_HOURS = 24;
+
+/**
+ * Encodes a 32-char hex hash + expiry timestamp into a self-contained invite code.
+ * Format: BASE32(hash_bytes + expiry_uint32_be)
+ * Result: ~36 chars, displayed in groups of 4 for readability.
+ */
+export function createInviteCode(listHash: string): string {
+    const hashBytes = new Uint8Array(16);
+    for (let i = 0; i < 16; i++) {
+        hashBytes[i] = parseInt(listHash.slice(i * 2, i * 2 + 2), 16);
+    }
+    // Expiry as hours since epoch (fits in 4 bytes for centuries)
+    const expiryHours = Math.floor(Date.now() / 3600000) + INVITE_EXPIRY_HOURS;
+    const expiryBytes = new Uint8Array(4);
+    new DataView(expiryBytes.buffer).setUint32(0, expiryHours);
+    // Combine: 16 hash bytes + 4 expiry bytes = 20 bytes
+    const combined = new Uint8Array(20);
+    combined.set(hashBytes);
+    combined.set(expiryBytes, 16);
+    // Base32 encode (5 bits per char): 20 bytes = 160 bits = 32 chars
+    let bits = '';
+    for (const b of combined) bits += b.toString(2).padStart(8, '0');
+    let code = '';
+    for (let i = 0; i < bits.length; i += 5) {
+        code += INVITE_CHARS[parseInt(bits.slice(i, i + 5), 2)];
+    }
+    return code;
+}
+
+/** Formats a code with dashes for display: XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX */
+export function formatInviteCode(code: string): string {
+    return code.match(/.{1,4}/g)?.join('-') ?? code;
+}
+
+/** Decodes an invite code back to listHash + checks expiry. */
+export async function redeemInviteCode(code: string): Promise<{ listHash: string; listName: string } | null> {
+    const clean = code.toUpperCase().replace(/[^A-Z2-9]/g, '');
+    if (clean.length !== 32) return null;
+    // Base32 decode
+    let bits = '';
+    for (const c of clean) {
+        const idx = INVITE_CHARS.indexOf(c);
+        if (idx < 0) return null;
+        bits += idx.toString(2).padStart(5, '0');
+    }
+    const bytes = new Uint8Array(20);
+    for (let i = 0; i < 20; i++) {
+        bytes[i] = parseInt(bits.slice(i * 8, i * 8 + 8), 2);
+    }
+    // Extract hash (first 16 bytes)
+    let listHash = '';
+    for (let i = 0; i < 16; i++) listHash += bytes[i].toString(16).padStart(2, '0');
+    // Extract and check expiry (last 4 bytes)
+    const expiryHours = new DataView(bytes.buffer).getUint32(16);
+    const nowHours = Math.floor(Date.now() / 3600000);
+    if (nowHours > expiryHours) return null; // expired
+    // Verify list exists
+    const name = await getListName(listHash);
+    if (!name) return null;
+    return { listHash, listName: name };
 }
 
 // ─── Username cookie ──────────────────────────────────────────────────────────

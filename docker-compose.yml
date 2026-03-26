@@ -7,18 +7,12 @@ services:
         VITE_PEPPER: ${PASSWORD}
     ports:
       - "${FRONTEND_PORT}:80"
-    networks:
-      checkit_net:
-        ipv4_address: 172.16.3.5
 
   backend:
     build:
       context: ./backend
     ports:
       - "${BACKEND_PORT}:8080"
-    networks:
-      checkit_net:
-        ipv4_address: 172.16.3.10
 
   db:
     image: couchdb:latest
@@ -30,13 +24,3 @@ services:
     volumes:
       - ./couchdb-config/local.ini:/opt/couchdb/etc/local.d/cors.ini
     #  - couchdb_data:/opt/couchdb/data
-    networks:
-      checkit_net:
-        ipv4_address: 172.16.3.20
-
-networks:
-  checkit_net:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 172.16.3.0/24

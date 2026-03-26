@@ -2,18 +2,16 @@
   <v-container class="fill-height" fluid>
     <v-row justify="center">
       <v-col cols="12" md="8" lg="6">
-        <v-card elevation="3" class="pa-4">
+        <v-card elevation="3" class="pa-2 pa-sm-4">
 
-          <div class="d-flex align-center mb-6">
+          <div class="d-flex align-center mb-4 mb-sm-6">
             <v-btn
-                icon
+                icon="mdi-arrow-left"
                 variant="text"
                 class="mr-2"
                 @click="$router.back()"
-            >
-              ⬅️
-            </v-btn>
-            <h1 class="text-h4 font-weight-bold">Einstellungen</h1>
+            />
+            <h1 class="text-h5 text-sm-h4 font-weight-bold">Einstellungen</h1>
           </div>
 
           <v-list lines="two" border class="rounded-lg">

@@ -20,6 +20,7 @@
     "@fontsource/inter": "^5.2.8",
     "blakejs": "^1.2.1",
     "pouchdb": "^9.0.0",
+    "tesseract.js": "^7.0.0",
     "vue": "^3.5.27",
     "vue-router": "4",
     "vuetify": "^3.11.8"

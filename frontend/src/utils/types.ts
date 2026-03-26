@@ -4,7 +4,10 @@ export interface ListItem {
     id: string;
     name: string;
     menge: string;
+    preis?: string;
     done: boolean;
+    category: string;
+    syncError?: boolean;
 }
 
 export interface ListMeta {

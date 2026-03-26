@@ -1,6 +1,6 @@
 <template>
   <v-app>
-    <v-app-bar flat border="b">
+    <v-app-bar flat border="b" density="comfortable">
       <v-app-bar-title>
         <router-link to="/" class="text-decoration-none text-success font-weight-bold">
           <v-icon color="success" class="mr-1">mdi-checkbox-marked</v-icon>CheckIT
@@ -8,13 +8,20 @@
       </v-app-bar-title>
 
       <template v-if="currentUser">
-        <v-icon class="mr-1">mdi-account</v-icon>
-        <span class="text-body-2 mr-3">{{ currentUser }}</span>
-        <v-btn variant="text" prepend-icon="mdi-logout" @click="handleLogout">Logout</v-btn>
+        <!-- Desktop -->
+        <v-icon class="mr-1 d-none d-sm-inline">mdi-account</v-icon>
+        <span class="text-body-2 mr-3 d-none d-sm-inline">{{ currentUser }}</span>
+        <v-btn variant="text" prepend-icon="mdi-logout" class="d-none d-sm-flex" @click="handleLogout">Logout</v-btn>
+        <!-- Mobile -->
+        <v-btn variant="text" icon="mdi-logout" class="d-sm-none" @click="handleLogout" />
       </template>
       <template v-else>
-        <v-btn variant="text" prepend-icon="mdi-login" to="/login">Login</v-btn>
-        <v-btn variant="text" prepend-icon="mdi-account-plus" to="/register">Register</v-btn>
+        <!-- Desktop -->
+        <v-btn variant="text" prepend-icon="mdi-login" to="/login" class="d-none d-sm-flex">Login</v-btn>
+        <v-btn variant="text" prepend-icon="mdi-account-plus" to="/register" class="d-none d-sm-flex">Register</v-btn>
+        <!-- Mobile -->
+        <v-btn variant="text" icon="mdi-login" to="/login" class="d-sm-none" />
+        <v-btn variant="text" icon="mdi-account-plus" to="/register" class="d-sm-none" />
       </template>
     </v-app-bar>
 
