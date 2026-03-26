@@ -258,7 +258,7 @@ export async function redeemInviteCode(code: string): Promise<{ listHash: string
     }
     // Extract hash (first 16 bytes)
     let listHash = '';
-    for (let i = 0; i < 16; i++) listHash += bytes[i].toString(16).padStart(2, '0');
+    for (let i = 0; i < 16; i++) listHash += bytes[i]!.toString(16).padStart(2, '0');
     // Extract and check expiry (last 4 bytes)
     const expiryHours = new DataView(bytes.buffer).getUint32(16);
     const nowHours = Math.floor(Date.now() / 3600000);
