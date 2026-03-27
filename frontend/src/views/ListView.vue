@@ -280,21 +280,60 @@
     </v-dialog>
 
     <!-- Conflict dialog -->
-    <v-dialog v-model="conflictDialog" max-width="640" persistent>
+    <v-dialog v-model="conflictDialog" :max-width="conflictDialogWidth" persistent>
       <v-card>
         <v-card-title class="d-flex align-center pa-4">
           <v-icon color="warning" class="mr-2">mdi-alert</v-icon>
           Synchronisierungskonflikt
         </v-card-title>
 
-        <!-- Already resolved by someone else -->
+        <!-- Already resolved by someone else: show all versions read-only -->
         <template v-if="conflictAlreadyResolved">
           <v-card-text>
-            <v-alert type="success" variant="tonal">
+            <v-alert type="success" variant="tonal" class="mb-4">
               Dieser Konflikt wurde bereits von
               <strong>{{ conflictResolutionInfo?.resolvedBy }}</strong> gelöst
               ({{ formatTime(conflictResolutionInfo?.resolvedAt) }}).
             </v-alert>
+
+            <v-row v-if="conflictResolutionInfo?.versions?.length">
+              <v-col
+                  v-for="(v, i) in conflictResolutionInfo.versions"
+                  :key="i"
+                  :cols="Math.floor(12 / conflictResolutionInfo.versions.length)"
+                  class="d-flex flex-column"
+              >
+                <v-card
+                    :variant="v.chosen ? 'elevated' : 'outlined'"
+                    :color="v.chosen ? 'success' : undefined"
+                    class="flex-grow-1 d-flex flex-column"
+                >
+                  <v-card-title class="text-subtitle-2 pb-0">
+                    {{ v.label }}
+                    <v-icon v-if="v.chosen" size="small" class="ml-1">mdi-check-circle</v-icon>
+                  </v-card-title>
+                  <v-card-subtitle v-if="v.savedAt" class="text-caption">
+                    {{ formatTime(v.savedAt) }}
+                  </v-card-subtitle>
+                  <v-card-text class="flex-grow-1 pt-2">
+                    <div
+                        v-for="item in v.items"
+                        :key="String(item.id)"
+                        class="d-flex align-center mb-1"
+                    >
+                      <v-icon :color="item.done ? 'success' : 'grey'" size="small" class="mr-1">
+                        {{ item.done ? 'mdi-check-circle' : 'mdi-circle-outline' }}
+                      </v-icon>
+                      <span class="text-body-2">{{ item.name }}</span>
+                      <span class="text-caption text-grey ml-1">({{ item.menge }})</span>
+                    </div>
+                    <div v-if="v.items.length === 0" class="text-caption text-grey font-italic">
+                      Keine Artikel
+                    </div>
+                  </v-card-text>
+                </v-card>
+              </v-col>
+            </v-row>
           </v-card-text>
           <v-card-actions>
             <v-spacer></v-spacer>
@@ -302,7 +341,7 @@
           </v-card-actions>
         </template>
 
-        <!-- Conflict picker: choose entire version -->
+        <!-- Conflict picker: choose one version (supports 2, 3 or more) -->
         <template v-else>
           <v-card-text>
             <p class="text-body-2 text-grey mb-4">
@@ -310,16 +349,20 @@
             </p>
 
             <v-row>
-              <!-- Version A -->
-              <v-col cols="6" class="d-flex flex-column">
+              <v-col
+                  v-for="(v, i) in conflictVersions"
+                  :key="i"
+                  :cols="Math.floor(12 / conflictVersions.length)"
+                  class="d-flex flex-column"
+              >
                 <v-card variant="outlined" class="flex-grow-1 d-flex flex-column">
-                  <v-card-title class="text-subtitle-2 pb-0">{{ conflictVersionALabel }}</v-card-title>
-                  <v-card-subtitle v-if="conflictVersionATime" class="text-caption">
-                    {{ formatTime(conflictVersionATime) }}
+                  <v-card-title class="text-subtitle-2 pb-0">{{ v.label }}</v-card-title>
+                  <v-card-subtitle v-if="v.savedAt" class="text-caption">
+                    {{ formatTime(v.savedAt) }}
                   </v-card-subtitle>
                   <v-card-text class="flex-grow-1 pt-2">
                     <div
-                        v-for="item in conflictVersionAItems"
+                        v-for="item in v.items"
                         :key="String(item.id)"
                         class="d-flex align-center mb-1"
                     >
@@ -329,53 +372,18 @@
                       <span class="text-body-2">{{ item.name }}</span>
                       <span class="text-caption text-grey ml-1">({{ item.menge }})</span>
                     </div>
-                    <div v-if="conflictVersionAItems.length === 0" class="text-caption text-grey font-italic">
+                    <div v-if="v.items.length === 0" class="text-caption text-grey font-italic">
                       Keine Artikel
                     </div>
                   </v-card-text>
                   <v-card-actions>
-                    <v-btn color="primary" variant="elevated" block @click="applyConflictResolution('A')">
-                      Diese Version wählen
-                    </v-btn>
-                  </v-card-actions>
-                </v-card>
-              </v-col>
-
-              <!-- Version B -->
-              <v-col cols="6" class="d-flex flex-column">
-                <v-card variant="outlined" class="flex-grow-1 d-flex flex-column">
-                  <v-card-title class="text-subtitle-2 pb-0">{{ conflictVersionBLabel }}</v-card-title>
-                  <v-card-subtitle v-if="conflictVersionBTime" class="text-caption">
-                    {{ formatTime(conflictVersionBTime) }}
-                  </v-card-subtitle>
-                  <v-card-text class="flex-grow-1 pt-2">
-                    <div
-                        v-for="item in conflictVersionBItems"
-                        :key="String(item.id)"
-                        class="d-flex align-center mb-1"
-                    >
-                      <v-icon :color="item.done ? 'success' : 'grey'" size="small" class="mr-1">
-                        {{ item.done ? 'mdi-check-circle' : 'mdi-circle-outline' }}
-                      </v-icon>
-                      <span class="text-body-2">{{ item.name }}</span>
-                      <span class="text-caption text-grey ml-1">({{ item.menge }})</span>
-                    </div>
-                    <div v-if="conflictVersionBItems.length === 0" class="text-caption text-grey font-italic">
-                      Keine Artikel
-                    </div>
-                  </v-card-text>
-                  <v-card-actions>
-                    <v-btn color="primary" variant="elevated" block @click="applyConflictResolution('B')">
+                    <v-btn color="primary" variant="elevated" block @click="applyConflictResolution(i)">
                       Diese Version wählen
                     </v-btn>
                   </v-card-actions>
                 </v-card>
               </v-col>
             </v-row>
-
-            <v-alert v-if="hasMultipleConflicts" type="warning" variant="tonal" density="compact" class="mt-3">
-              Es gibt mehrere Konfliktvarianten. Nur die erste wird hier angezeigt. Nach der Auflösung kann ein weiterer Konflikt sichtbar werden.
-            </v-alert>
           </v-card-text>
           <v-card-actions>
             <v-spacer></v-spacer>
@@ -392,7 +400,7 @@
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { simulatedOffline, isOffline, lastSyncErrorMessage, listDb, createInviteCode, formatInviteCode, toggleOffline } from '@/utils/listHash';
-import type { ListItem, ListMeta, ConflictResolution } from '@/utils/types';
+import type { ListItem, ListMeta, ConflictResolution, ConflictVersionSnapshot } from '@/utils/types';
 import { currentUser } from '@/utils/auth';
 import PriceTagScanDialog from '@/components/PriceTagScanDialog.vue';
 
@@ -470,25 +478,43 @@ watch(lastSyncErrorMessage, (msg) => {
 // sees the warning exactly once until they click OK.
 const acknowledgedResolutionTimes = new Set<string>();
 
+function ackedStorageKey() {
+  return `checkit_acked_${listHash.value}`;
+}
+function persistAcked() {
+  localStorage.setItem(ackedStorageKey(), JSON.stringify([...acknowledgedResolutionTimes]));
+}
+
+interface ConflictVersion {
+  items:   ListItem[];
+  label:   string;
+  savedAt: string | null;
+  savedBy: string | null;
+}
+
 const hasConflict             = ref(false);
 const conflictDialog          = ref(false);
 const conflictAlreadyResolved = ref(false);
 const conflictResolutionInfo  = ref<ConflictResolution | null>(null);
-const conflictVersionATime    = ref<string | null>(null);
-const conflictVersionBTime    = ref<string | null>(null);
-const conflictVersionALabel   = ref('Version A');
-const conflictVersionBLabel   = ref('Version B');
-const conflictVersionAItems   = ref<ListItem[]>([]);
-const conflictVersionBItems   = ref<ListItem[]>([]);
-const hasMultipleConflicts    = ref(false);
+const conflictVersions        = ref<ConflictVersion[]>([]);
+
+// dialog width scales with number of versions shown
+const conflictDialogWidth = computed(() =>
+  Math.max(conflictVersions.value.length, conflictResolutionInfo.value?.versions?.length ?? 0) >= 3
+    ? '960' : '640'
+);
 
 let pendingConflictRevs: string[] = [];
-let pendingWinningDoc:    (ListMeta & { _conflicts?: string[] }) | null = null;
-let pendingConflictingDoc: (ListMeta & { _conflicts?: string[] }) | null = null;
+let pendingWinningDoc: (ListMeta & { _conflicts?: string[] }) | null = null;
 
 // ── Lifecycle ─────────────────────────────────────────────────────────────────
 
 onMounted(async () => {
+  try {
+    const stored = localStorage.getItem(ackedStorageKey());
+    if (stored) JSON.parse(stored).forEach((t: string) => acknowledgedResolutionTimes.add(t));
+  } catch { /* ignore */ }
+
   await fetchItems();
 
   changeListener = listDb.changes({
@@ -609,6 +635,7 @@ const openConflictDialog = async () => {
     if (doc.conflictResolution) {
       conflictAlreadyResolved.value = true;
       conflictResolutionInfo.value  = doc.conflictResolution;
+      conflictVersions.value        = [];
     } else {
       hasConflict.value = false;
       return;
@@ -617,18 +644,16 @@ const openConflictDialog = async () => {
     return;
   }
 
-  hasMultipleConflicts.value = doc._conflicts.length > 1;
+  // Load all conflict revisions alongside the winning doc
+  const allDocs: (ListMeta & { _conflicts?: string[] })[] = [doc];
+  for (const rev of doc._conflicts) {
+    const d = await (listDb as any).get(listHash.value, { rev }) as ListMeta;
+    allDocs.push(d);
+  }
 
-  const winningDoc     = doc;
-  const conflictRev    = doc._conflicts[0]!;
-  const conflictingDoc = await (listDb as any).get(listHash.value, { rev: conflictRev }) as ListMeta;
-
-  const winItems = winningDoc.items    || [];
-  const conItems = conflictingDoc.items || [];
-
-  // Check if content is identical — just delete the losing revision
-  const identical = JSON.stringify(winItems) === JSON.stringify(conItems);
-  if (identical) {
+  // If all versions are content-identical, silently delete losing revisions
+  const firstItems = JSON.stringify(doc.items ?? []);
+  if (allDocs.every(d => JSON.stringify(d.items ?? []) === firstItems)) {
     for (const rev of doc._conflicts) {
       try { await (listDb as any).remove(listHash.value, rev); } catch { /* ignore */ }
     }
@@ -636,34 +661,44 @@ const openConflictDialog = async () => {
     return;
   }
 
-  // Label each version as "Deine Version" if savedBy matches the current user
   const user = currentUser.value || '';
-  conflictVersionALabel.value = winningDoc.savedBy && winningDoc.savedBy !== user
-    ? `Version von ${winningDoc.savedBy}`
-    : 'Deine Version';
-  conflictVersionBLabel.value = conflictingDoc.savedBy && conflictingDoc.savedBy !== user
-    ? `Version von ${conflictingDoc.savedBy}`
-    : conflictingDoc.savedBy === user ? 'Deine Version' : 'Andere Version';
+  const versions: ConflictVersion[] = allDocs.map((d, i) => {
+    let label: string;
+    if (d.savedBy === user) {
+      label = 'Deine Version';
+    } else if (d.savedBy) {
+      label = `Version von ${d.savedBy}`;
+    } else {
+      label = `Version ${String.fromCharCode(65 + i)}`; // A, B, C …
+    }
+    return { items: d.items ?? [], label, savedAt: d.savedAt ?? null, savedBy: d.savedBy ?? null };
+  });
 
   pendingConflictRevs           = doc._conflicts;
-  pendingWinningDoc             = winningDoc;
-  pendingConflictingDoc         = conflictingDoc;
+  pendingWinningDoc             = doc;
+  conflictVersions.value        = versions;
   conflictAlreadyResolved.value = false;
-  conflictVersionATime.value    = winningDoc.savedAt    ?? null;
-  conflictVersionBTime.value    = conflictingDoc.savedAt ?? null;
-  conflictVersionAItems.value   = winItems;
-  conflictVersionBItems.value   = conItems;
   conflictDialog.value          = true;
 };
 
-const applyConflictResolution = async (choice: 'A' | 'B') => {
-  if (!pendingWinningDoc || !pendingConflictingDoc) return;
+const applyConflictResolution = async (index: number) => {
+  if (!pendingWinningDoc) return;
 
-  const chosenItems = choice === 'A'
-    ? [...(pendingWinningDoc.items    || [])]
-    : [...(pendingConflictingDoc.items || [])];
+  const chosen = conflictVersions.value[index];
+  if (!chosen) return;
 
-  // Delete all losing conflict revisions
+  const chosenItems = [...chosen.items];
+
+  // Store snapshots of all versions so the "already resolved" dialog can show them
+  const versionSnapshots: ConflictVersionSnapshot[] = conflictVersions.value.map((v, i) => ({
+    label:   v.label,
+    savedAt: v.savedAt ?? undefined,
+    savedBy: v.savedBy ?? undefined,
+    items:   v.items,
+    chosen:  i === index,
+  }));
+
+  // Delete all conflict revisions
   for (const rev of pendingConflictRevs) {
     try { await (listDb as any).remove(listHash.value, rev); }
     catch (e) { console.warn('[conflict] failed to remove rev', rev, e); }
@@ -673,7 +708,11 @@ const applyConflictResolution = async (choice: 'A' | 'B') => {
   const resolvedDoc: ListMeta & { _conflicts?: string[] } = {
     ...pendingWinningDoc,
     items: chosenItems,
-    conflictResolution: { resolvedBy: currentUser.value || 'Unbekannt', resolvedAt },
+    conflictResolution: {
+      resolvedBy: currentUser.value || 'Unbekannt',
+      resolvedAt,
+      versions: versionSnapshots,
+    },
   };
   delete resolvedDoc._conflicts;
 
@@ -682,6 +721,7 @@ const applyConflictResolution = async (choice: 'A' | 'B') => {
   shoppingList.value = chosenItems;
 
   acknowledgedResolutionTimes.add(resolvedAt);
+  persistAcked();
   hasConflict.value    = false;
   conflictDialog.value = false;
 };
@@ -689,6 +729,7 @@ const applyConflictResolution = async (choice: 'A' | 'B') => {
 const acknowledgeConflict = () => {
   if (conflictResolutionInfo.value?.resolvedAt) {
     acknowledgedResolutionTimes.add(conflictResolutionInfo.value.resolvedAt);
+    persistAcked();
   }
   hasConflict.value    = false;
   conflictDialog.value = false;

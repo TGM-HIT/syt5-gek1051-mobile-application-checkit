@@ -11,9 +11,18 @@ export interface ListItem {
     updatedAt?: string;
 }
 
+export interface ConflictVersionSnapshot {
+    label: string;
+    savedAt?: string;
+    savedBy?: string;
+    items: ListItem[];
+    chosen: boolean;
+}
+
 export interface ConflictResolution {
     resolvedBy: string;
     resolvedAt: string;
+    versions?: ConflictVersionSnapshot[];
 }
 
 export interface ListMeta {
