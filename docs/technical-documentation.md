@@ -41,7 +41,7 @@ Die Umsetzung erfolgt durch eine reaktive Verknüpfung der Eingabefelder mit dem
 
 > Als Benutzer möchte ich Artikel aus meiner Übersicht entfernen, wenn ich sie nicht mehr brauche, um die Liste übersichtlich zu halten aber sie leicht wiederherstellen zu können.
 
-## Story 4 – Sofortiges Hochladen von Änderungen
+## Story 4 – Entgültiges löschen der Einträge
 
 *HEAD: JEIJ | Prio: SH | SP: 5*
 
