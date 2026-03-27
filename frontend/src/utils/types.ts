@@ -23,6 +23,7 @@ export interface ListMeta {
     items?: ListItem[];
     conflictResolution?: ConflictResolution;
     savedAt?: string;
+    savedBy?: string;
 }
 
 export interface GlobalStats {

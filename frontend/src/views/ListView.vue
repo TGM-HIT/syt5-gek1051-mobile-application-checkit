@@ -302,99 +302,84 @@
           </v-card-actions>
         </template>
 
-        <!-- Conflict picker -->
+        <!-- Conflict picker: choose entire version -->
         <template v-else>
           <v-card-text>
             <p class="text-body-2 text-grey mb-4">
-              Während du offline warst wurden gleichzeitig Änderungen gemacht. Bitte wähle für jeden Eintrag die gewünschte Version.
+              Während du offline warst wurden gleichzeitig Änderungen gemacht. Welche Version soll übernommen werden?
             </p>
 
-            <div v-for="entry in conflictEntries" :key="String(entry.itemId)" class="mb-5">
-              <div class="text-subtitle-2 mb-2 font-weight-bold">
-                {{ entry.versionA?.name ?? entry.versionB?.name }}
-              </div>
-              <v-row>
-                <!-- Version A -->
-                <v-col cols="6">
-                  <v-card
-                      :variant="entry.chosen === 'A' ? 'elevated' : 'outlined'"
-                      :color="entry.chosen === 'A' ? 'primary' : undefined"
-                      class="pa-3 cursor-pointer h-100"
-                      @click="entry.chosen = 'A'"
-                  >
-                    <div class="text-caption font-weight-medium mb-1">Version A</div>
-                    <div v-if="conflictVersionATime" class="text-caption text-grey mb-2">
-                      {{ formatTime(conflictVersionATime) }}
+            <v-row>
+              <!-- Version A -->
+              <v-col cols="6" class="d-flex flex-column">
+                <v-card variant="outlined" class="flex-grow-1 d-flex flex-column">
+                  <v-card-title class="text-subtitle-2 pb-0">{{ conflictVersionALabel }}</v-card-title>
+                  <v-card-subtitle v-if="conflictVersionATime" class="text-caption">
+                    {{ formatTime(conflictVersionATime) }}
+                  </v-card-subtitle>
+                  <v-card-text class="flex-grow-1 pt-2">
+                    <div
+                        v-for="item in conflictVersionAItems"
+                        :key="String(item.id)"
+                        class="d-flex align-center mb-1"
+                    >
+                      <v-icon :color="item.done ? 'success' : 'grey'" size="small" class="mr-1">
+                        {{ item.done ? 'mdi-check-circle' : 'mdi-circle-outline' }}
+                      </v-icon>
+                      <span class="text-body-2">{{ item.name }}</span>
+                      <span class="text-caption text-grey ml-1">({{ item.menge }})</span>
                     </div>
-                    <template v-if="entry.versionA">
-                      <div class="d-flex align-center mb-1">
-                        <v-icon :color="entry.versionA.done ? 'success' : 'grey'" size="small">
-                          {{ entry.versionA.done ? 'mdi-check-circle' : 'mdi-circle-outline' }}
-                        </v-icon>
-                        <span class="ml-2 text-body-2">{{ entry.versionA.done ? 'Erledigt' : 'Offen' }}</span>
-                      </div>
-                      <div class="text-body-2">{{ entry.versionA.name }}</div>
-                      <div class="text-caption text-grey">Menge: {{ entry.versionA.menge }}</div>
-                      <div v-if="entry.versionA.preis" class="text-caption text-grey">Preis: € {{ entry.versionA.preis }}</div>
-                      <div v-if="entry.versionA.updatedAt" class="text-caption text-grey mt-1">
-                        Geändert: {{ formatTime(entry.versionA.updatedAt) }}
-                      </div>
-                    </template>
-                    <template v-else>
-                      <div class="text-body-2 text-grey font-italic">Artikel nicht vorhanden</div>
-                    </template>
-                  </v-card>
-                </v-col>
-
-                <!-- Version B -->
-                <v-col cols="6">
-                  <v-card
-                      :variant="entry.chosen === 'B' ? 'elevated' : 'outlined'"
-                      :color="entry.chosen === 'B' ? 'primary' : undefined"
-                      class="pa-3 cursor-pointer h-100"
-                      @click="entry.chosen = 'B'"
-                  >
-                    <div class="text-caption font-weight-medium mb-1">Version B</div>
-                    <div v-if="conflictVersionBTime" class="text-caption text-grey mb-2">
-                      {{ formatTime(conflictVersionBTime) }}
+                    <div v-if="conflictVersionAItems.length === 0" class="text-caption text-grey font-italic">
+                      Keine Artikel
                     </div>
-                    <template v-if="entry.versionB">
-                      <div class="d-flex align-center mb-1">
-                        <v-icon :color="entry.versionB.done ? 'success' : 'grey'" size="small">
-                          {{ entry.versionB.done ? 'mdi-check-circle' : 'mdi-circle-outline' }}
-                        </v-icon>
-                        <span class="ml-2 text-body-2">{{ entry.versionB.done ? 'Erledigt' : 'Offen' }}</span>
-                      </div>
-                      <div class="text-body-2">{{ entry.versionB.name }}</div>
-                      <div class="text-caption text-grey">Menge: {{ entry.versionB.menge }}</div>
-                      <div v-if="entry.versionB.preis" class="text-caption text-grey">Preis: € {{ entry.versionB.preis }}</div>
-                      <div v-if="entry.versionB.updatedAt" class="text-caption text-grey mt-1">
-                        Geändert: {{ formatTime(entry.versionB.updatedAt) }}
-                      </div>
-                    </template>
-                    <template v-else>
-                      <div class="text-body-2 text-grey font-italic">Artikel nicht vorhanden</div>
-                    </template>
-                  </v-card>
-                </v-col>
-              </v-row>
-            </div>
+                  </v-card-text>
+                  <v-card-actions>
+                    <v-btn color="primary" variant="elevated" block @click="applyConflictResolution('A')">
+                      Diese Version wählen
+                    </v-btn>
+                  </v-card-actions>
+                </v-card>
+              </v-col>
 
-            <v-alert v-if="hasMultipleConflicts" type="warning" variant="tonal" density="compact" class="mt-2">
+              <!-- Version B -->
+              <v-col cols="6" class="d-flex flex-column">
+                <v-card variant="outlined" class="flex-grow-1 d-flex flex-column">
+                  <v-card-title class="text-subtitle-2 pb-0">{{ conflictVersionBLabel }}</v-card-title>
+                  <v-card-subtitle v-if="conflictVersionBTime" class="text-caption">
+                    {{ formatTime(conflictVersionBTime) }}
+                  </v-card-subtitle>
+                  <v-card-text class="flex-grow-1 pt-2">
+                    <div
+                        v-for="item in conflictVersionBItems"
+                        :key="String(item.id)"
+                        class="d-flex align-center mb-1"
+                    >
+                      <v-icon :color="item.done ? 'success' : 'grey'" size="small" class="mr-1">
+                        {{ item.done ? 'mdi-check-circle' : 'mdi-circle-outline' }}
+                      </v-icon>
+                      <span class="text-body-2">{{ item.name }}</span>
+                      <span class="text-caption text-grey ml-1">({{ item.menge }})</span>
+                    </div>
+                    <div v-if="conflictVersionBItems.length === 0" class="text-caption text-grey font-italic">
+                      Keine Artikel
+                    </div>
+                  </v-card-text>
+                  <v-card-actions>
+                    <v-btn color="primary" variant="elevated" block @click="applyConflictResolution('B')">
+                      Diese Version wählen
+                    </v-btn>
+                  </v-card-actions>
+                </v-card>
+              </v-col>
+            </v-row>
+
+            <v-alert v-if="hasMultipleConflicts" type="warning" variant="tonal" density="compact" class="mt-3">
               Es gibt mehrere Konfliktvarianten. Nur die erste wird hier angezeigt. Nach der Auflösung kann ein weiterer Konflikt sichtbar werden.
             </v-alert>
           </v-card-text>
           <v-card-actions>
             <v-spacer></v-spacer>
             <v-btn color="grey-darken-1" variant="text" @click="conflictDialog = false">Abbrechen</v-btn>
-            <v-btn
-                color="primary"
-                variant="elevated"
-                :disabled="conflictEntries.some(e => e.chosen === null)"
-                @click="applyConflictResolution"
-            >
-              Übernehmen
-            </v-btn>
           </v-card-actions>
         </template>
       </v-card>
@@ -485,24 +470,21 @@ watch(lastSyncErrorMessage, (msg) => {
 // sees the warning exactly once until they click OK.
 const acknowledgedResolutionTimes = new Set<string>();
 
-interface ConflictEntry {
-  itemId: string;
-  versionA: ListItem | null;
-  versionB: ListItem | null;
-  chosen: 'A' | 'B' | null;
-}
-
 const hasConflict             = ref(false);
 const conflictDialog          = ref(false);
 const conflictAlreadyResolved = ref(false);
 const conflictResolutionInfo  = ref<ConflictResolution | null>(null);
-const conflictEntries         = ref<ConflictEntry[]>([]);
 const conflictVersionATime    = ref<string | null>(null);
 const conflictVersionBTime    = ref<string | null>(null);
+const conflictVersionALabel   = ref('Version A');
+const conflictVersionBLabel   = ref('Version B');
+const conflictVersionAItems   = ref<ListItem[]>([]);
+const conflictVersionBItems   = ref<ListItem[]>([]);
 const hasMultipleConflicts    = ref(false);
 
 let pendingConflictRevs: string[] = [];
-let pendingWinningDoc: (ListMeta & { _conflicts?: string[] }) | null = null;
+let pendingWinningDoc:    (ListMeta & { _conflicts?: string[] }) | null = null;
+let pendingConflictingDoc: (ListMeta & { _conflicts?: string[] }) | null = null;
 
 // ── Lifecycle ─────────────────────────────────────────────────────────────────
 
@@ -592,8 +574,9 @@ const fetchItems = async () => {
 
 const saveItemsToDb = async (changedItemId?: string) => {
   if (!listDoc) return;
-  listDoc.items  = [...shoppingList.value];
+  listDoc.items   = [...shoppingList.value];
   listDoc.savedAt = new Date().toISOString();
+  listDoc.savedBy = currentUser.value || 'Unbekannt';
   try {
     const response = await listDb.put(listDoc);
     listDoc._rev = response.rev;
@@ -643,39 +626,9 @@ const openConflictDialog = async () => {
   const winItems = winningDoc.items    || [];
   const conItems = conflictingDoc.items || [];
 
-  const entries: ConflictEntry[] = [];
-  const seenIds = new Set<string>();
-
-  // Items present in the winning version
-  for (const wi of winItems) {
-    seenIds.add(String(wi.id));
-    const ci = conItems.find((c: ListItem) => c.id === wi.id);
-    if (ci) {
-      // Both versions have this item — show if any field differs
-      const differs =
-        wi.done     !== ci.done     ||
-        wi.name     !== ci.name     ||
-        wi.menge    !== ci.menge    ||
-        (wi.preis   ?? '') !== (ci.preis ?? '') ||
-        wi.category !== ci.category;
-      if (differs) {
-        entries.push({ itemId: String(wi.id), versionA: { ...wi }, versionB: { ...ci }, chosen: null });
-      }
-    } else {
-      // Item exists in A but not in B (added in A or deleted in B)
-      entries.push({ itemId: String(wi.id), versionA: { ...wi }, versionB: null, chosen: null });
-    }
-  }
-
-  // Items only in the conflicting version (added in B or deleted in A)
-  for (const ci of conItems) {
-    if (!seenIds.has(String(ci.id))) {
-      entries.push({ itemId: String(ci.id), versionA: null, versionB: { ...ci }, chosen: null });
-    }
-  }
-
-  if (entries.length === 0) {
-    // Revisions are identical in content — just delete the losing revision
+  // Check if content is identical — just delete the losing revision
+  const identical = JSON.stringify(winItems) === JSON.stringify(conItems);
+  if (identical) {
     for (const rev of doc._conflicts) {
       try { await (listDb as any).remove(listHash.value, rev); } catch { /* ignore */ }
     }
@@ -683,47 +636,32 @@ const openConflictDialog = async () => {
     return;
   }
 
+  // Label each version as "Deine Version" if savedBy matches the current user
+  const user = currentUser.value || '';
+  conflictVersionALabel.value = winningDoc.savedBy && winningDoc.savedBy !== user
+    ? `Version von ${winningDoc.savedBy}`
+    : 'Deine Version';
+  conflictVersionBLabel.value = conflictingDoc.savedBy && conflictingDoc.savedBy !== user
+    ? `Version von ${conflictingDoc.savedBy}`
+    : conflictingDoc.savedBy === user ? 'Deine Version' : 'Andere Version';
+
   pendingConflictRevs           = doc._conflicts;
   pendingWinningDoc             = winningDoc;
-  conflictEntries.value         = entries;
+  pendingConflictingDoc         = conflictingDoc;
   conflictAlreadyResolved.value = false;
   conflictVersionATime.value    = winningDoc.savedAt    ?? null;
   conflictVersionBTime.value    = conflictingDoc.savedAt ?? null;
+  conflictVersionAItems.value   = winItems;
+  conflictVersionBItems.value   = conItems;
   conflictDialog.value          = true;
 };
 
-const applyConflictResolution = async () => {
-  if (!pendingWinningDoc) return;
+const applyConflictResolution = async (choice: 'A' | 'B') => {
+  if (!pendingWinningDoc || !pendingConflictingDoc) return;
 
-  // Start with a mutable copy of the winning doc's items
-  const mergedItems = [...(pendingWinningDoc.items || [])];
-
-  for (const entry of conflictEntries.value) {
-    const idx = mergedItems.findIndex(i => String(i.id) === entry.itemId);
-
-    if (entry.chosen === 'A') {
-      if (entry.versionA) {
-        // Keep/overwrite with version A
-        if (idx !== -1) mergedItems[idx] = { ...entry.versionA };
-        // If not present (was only in B), leave it absent
-      } else {
-        // Version A has no such item → delete it
-        if (idx !== -1) mergedItems.splice(idx, 1);
-      }
-    } else if (entry.chosen === 'B') {
-      if (entry.versionB) {
-        if (idx !== -1) {
-          mergedItems[idx] = { ...entry.versionB };
-        } else {
-          // Item only existed in B → add it
-          mergedItems.push({ ...entry.versionB });
-        }
-      } else {
-        // Version B has no such item → delete it
-        if (idx !== -1) mergedItems.splice(idx, 1);
-      }
-    }
-  }
+  const chosenItems = choice === 'A'
+    ? [...(pendingWinningDoc.items    || [])]
+    : [...(pendingConflictingDoc.items || [])];
 
   // Delete all losing conflict revisions
   for (const rev of pendingConflictRevs) {
@@ -731,17 +669,17 @@ const applyConflictResolution = async () => {
     catch (e) { console.warn('[conflict] failed to remove rev', rev, e); }
   }
 
-  const resolvedAt = new Date().toISOString();
+  const resolvedAt  = new Date().toISOString();
   const resolvedDoc: ListMeta & { _conflicts?: string[] } = {
     ...pendingWinningDoc,
-    items: mergedItems,
+    items: chosenItems,
     conflictResolution: { resolvedBy: currentUser.value || 'Unbekannt', resolvedAt },
   };
   delete resolvedDoc._conflicts;
 
   const response = await listDb.put(resolvedDoc);
   listDoc = { ...resolvedDoc, _rev: response.rev };
-  shoppingList.value = mergedItems;
+  shoppingList.value = chosenItems;
 
   acknowledgedResolutionTimes.add(resolvedAt);
   hasConflict.value    = false;
