@@ -7,6 +7,17 @@
         </router-link>
       </v-app-bar-title>
 
+      <!-- Online / Offline indicator -->
+      <v-chip
+          :color="effectivelyOffline ? 'error' : 'success'"
+          variant="tonal"
+          size="small"
+          class="mr-3"
+      >
+        <v-icon start size="14">{{ effectivelyOffline ? 'mdi-wifi-off' : 'mdi-wifi' }}</v-icon>
+        {{ effectivelyOffline ? 'Offline' : 'Online' }}
+      </v-chip>
+
       <template v-if="currentUser">
         <!-- Desktop -->
         <v-icon class="mr-1 d-none d-sm-inline">mdi-account</v-icon>
@@ -32,10 +43,14 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { currentUser, logout } from '@/utils/auth';
+import { simulatedOffline, isOffline } from '@/utils/listHash';
 
 const router = useRouter();
+
+const effectivelyOffline = computed(() => simulatedOffline.value || isOffline.value);
 
 const handleLogout = () => {
   logout();

@@ -117,9 +117,7 @@ function parseOcrText(text: string) {
   let priceLineIndex = -1;
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    if (!line) continue;
-    const match = line.match(priceRegex);
+    const match = lines[i]?.match(priceRegex);
     if (match) {
       foundPrice = (match[1] ?? match[2] ?? '').replace('.', ',');
       priceLineIndex = i;

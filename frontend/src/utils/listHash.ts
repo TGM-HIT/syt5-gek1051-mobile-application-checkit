@@ -1,6 +1,7 @@
 import { blake2sHex } from 'blakejs';
 import PouchDB from 'pouchdb';
 import { ref } from 'vue';
+import type { ListItem, ListMeta, GlobalStats } from './types';
 
 // ─── PouchDB instances ────────────────────────────────────────────────────────
 
@@ -19,15 +20,18 @@ export const couchDbStatus = ref<'connecting' | 'active' | 'paused' | 'error' | 
 /** Reactive sync error message (empty string when no error). */
 export const lastSyncErrorMessage = ref('');
 
-/** Reactive flag indicating simulated offline mode (debug only). */
-export const simulatedOffline = ref(false);
+const SIM_OFFLINE_KEY = 'checkit_simoffline';
+
+/** Reactive flag indicating simulated offline mode — persisted in sessionStorage. */
+export const simulatedOffline = ref(sessionStorage.getItem(SIM_OFFLINE_KEY) === '1');
 
 /** Reactive flag indicating real browser network offline status. */
 export const isOffline = ref(!navigator.onLine);
 window.addEventListener('online',  () => { isOffline.value = false; });
 window.addEventListener('offline', () => { isOffline.value = true; });
 
-let listSync: ReturnType<typeof listDb.sync> | null = null;
+let listSync:  ReturnType<typeof listDb.sync> | null = null;
+let statsSync: ReturnType<typeof statsDb.sync> | null = null;
 
 function startListSync() {
     listSync = listDb.sync(`${COUCHDB_URL}/checkit_lists`, { live: true, retry: true })
@@ -40,48 +44,89 @@ function startListSync() {
         });
 }
 
-if (COUCHDB_URL) {
-    statsDb.sync(`${COUCHDB_URL}/checkit_stats`, { live: true, retry: true })
+function startStatsSync() {
+    statsSync = statsDb.sync(`${COUCHDB_URL}/checkit_stats`, { live: true, retry: true })
         .on('error', (err: unknown) => console.warn('[sync:stats]', err));
-    startListSync();
 }
 
-/** Toggle simulated offline mode (pauses/resumes CouchDB sync). */
+if (COUCHDB_URL) {
+    if (simulatedOffline.value) {
+        // Offline mode was active before reload — stay offline
+        couchDbStatus.value = 'disabled';
+    } else {
+        startStatsSync();
+        startListSync();
+    }
+}
+
+/**
+ * Toggle simulated offline mode (pauses/resumes both CouchDB syncs).
+ */
 export function toggleOffline() {
     if (!COUCHDB_URL) return;
     if (simulatedOffline.value) {
+        // Go online
         simulatedOffline.value = false;
+        sessionStorage.removeItem(SIM_OFFLINE_KEY);
         couchDbStatus.value = 'connecting';
+        startStatsSync();
         startListSync();
     } else {
+        // Go offline — cancel both syncs
         simulatedOffline.value = true;
+        sessionStorage.setItem(SIM_OFFLINE_KEY, '1');
         listSync?.cancel();
         listSync = null;
+        statsSync?.cancel();
+        statsSync = null;
         couchDbStatus.value = 'disabled';
     }
 }
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+/**
+ * Hard reset: cancels all sync, wipes all documents from both remote CouchDB
+ * databases, destroys both local PouchDB databases, then reloads the page.
+ */
+export async function hardReset(): Promise<void> {
+    // 1. Stop all sync
+    listSync?.cancel();
+    listSync = null;
+    statsSync?.cancel();
+    statsSync = null;
 
-interface GlobalStats {
-    _id: string;
-    _rev?: string;
-    total_lists_created: number;
-}
+    // 2. Wipe remote CouchDB by bulk-deleting all documents
+    if (COUCHDB_URL) {
+        for (const dbName of ['checkit_lists', 'checkit_stats']) {
+            try {
+                const remoteDb = new PouchDB(`${COUCHDB_URL}/${dbName}`);
+                const all = await remoteDb.allDocs();
+                if (all.rows.length > 0) {
+                    await remoteDb.bulkDocs(
+                        all.rows.map(row => ({ _id: row.id, _rev: row.value.rev, _deleted: true }))
+                    );
+                }
+                await remoteDb.close();
+            } catch (err) {
+                console.warn(`[hardReset] could not wipe remote ${dbName}:`, err);
+            }
+        }
+    }
 
-export interface ListItem {
-    id: string | number;
-    name: string;
-    menge: string;
-    done: boolean;
-    syncError?: boolean;
-}
+    // 3. Destroy local PouchDB databases
+    await listDb.destroy();
+    await statsDb.destroy();
 
-export interface ListMeta {
-    _id: string;
-    _rev?: string;
-    name: string;
-    items?: ListItem[];
+    // 4. Wipe all checkit entries from localStorage (accounts, etc.)
+    Object.keys(localStorage)
+        .filter(k => k.startsWith('checkit_'))
+        .forEach(k => localStorage.removeItem(k));
+
+    // 5. Clear session cookie and simulated-offline flag
+    document.cookie = 'checkit_username=; max-age=0; path=/; SameSite=Lax';
+    sessionStorage.removeItem(SIM_OFFLINE_KEY);
+
+    // 6. Reload to a clean state
+    window.location.href = '/';
 }
 
 // ─── Global stats (counter) ───────────────────────────────────────────────────
@@ -121,7 +166,7 @@ async function incrementListsCreated(): Promise<number> {
 export interface UserListEntry {
     hash: string;
     name: string;
-    createdAt: string; // ISO date string
+    createdAt: string;
 }
 
 interface UserListsDoc {
@@ -189,10 +234,6 @@ export async function createList(name: string, username?: string): Promise<{ has
 
 // ─── List name lookup ─────────────────────────────────────────────────────────
 
-/**
- * Returns the stored name for a list hash, or null if unknown.
- * Does NOT create a document — use createList() for that.
- */
 export async function getListName(hash: string): Promise<string | null> {
     try {
         const doc = await listDb.get<ListMeta>(hash);
@@ -211,18 +252,16 @@ const INVITE_EXPIRY_HOURS = 24;
 /**
  * Encodes a 32-char hex hash + expiry timestamp into a self-contained invite code.
  * Format: BASE32(hash_bytes + expiry_uint32_be)
- * Result: ~36 chars, displayed in groups of 4 for readability.
+ * Result: 32 chars, displayed in groups of 4 for readability.
  */
 export function createInviteCode(listHash: string): string {
     const hashBytes = new Uint8Array(16);
     for (let i = 0; i < 16; i++) {
         hashBytes[i] = parseInt(listHash.slice(i * 2, i * 2 + 2), 16);
     }
-    // Expiry as hours since epoch (fits in 4 bytes for centuries)
     const expiryHours = Math.floor(Date.now() / 3600000) + INVITE_EXPIRY_HOURS;
     const expiryBytes = new Uint8Array(4);
     new DataView(expiryBytes.buffer).setUint32(0, expiryHours);
-    // Combine: 16 hash bytes + 4 expiry bytes = 20 bytes
     const combined = new Uint8Array(20);
     combined.set(hashBytes);
     combined.set(expiryBytes, 16);
@@ -245,7 +284,6 @@ export function formatInviteCode(code: string): string {
 export async function redeemInviteCode(code: string): Promise<{ listHash: string; listName: string } | null> {
     const clean = code.toUpperCase().replace(/[^A-Z2-9]/g, '');
     if (clean.length !== 32) return null;
-    // Base32 decode
     let bits = '';
     for (const c of clean) {
         const idx = INVITE_CHARS.indexOf(c);
@@ -256,41 +294,12 @@ export async function redeemInviteCode(code: string): Promise<{ listHash: string
     for (let i = 0; i < 20; i++) {
         bytes[i] = parseInt(bits.slice(i * 8, i * 8 + 8), 2);
     }
-    // Extract hash (first 16 bytes)
     let listHash = '';
-    for (let i = 0; i < 16; i++) listHash += bytes[i]!.toString(16).padStart(2, '0');
-    // Extract and check expiry (last 4 bytes)
+    for (let i = 0; i < 16; i++) listHash += (bytes[i] ?? 0).toString(16).padStart(2, '0');
     const expiryHours = new DataView(bytes.buffer).getUint32(16);
     const nowHours = Math.floor(Date.now() / 3600000);
-    if (nowHours > expiryHours) return null; // expired
-    // Verify list exists
+    if (nowHours > expiryHours) return null;
     const name = await getListName(listHash);
     if (!name) return null;
     return { listHash, listName: name };
-}
-
-// ─── Username cookie ──────────────────────────────────────────────────────────
-
-const USERNAME_COOKIE = 'checkit_username';
-const COOKIE_MAX_AGE_DAYS = 365;
-
-/** Returns the stored username from the cookie, or null if not set. */
-export function getUsername(): string | null {
-    const match = document.cookie
-        .split(';')
-        .map(c => c.trim())
-        .find(c => c.startsWith(USERNAME_COOKIE + '='));
-    if (!match) return null;
-    return decodeURIComponent(match.substring(USERNAME_COOKIE.length + 1)) || null;
-}
-
-/** Persists the username as a 1-year cookie. */
-export function setUsername(name: string): void {
-    const maxAge = COOKIE_MAX_AGE_DAYS * 24 * 60 * 60;
-    document.cookie = `${USERNAME_COOKIE}=${encodeURIComponent(name)}; max-age=${maxAge}; path=/; SameSite=Lax`;
-}
-
-/** Deletes the username cookie (logout). */
-export function clearUsername(): void {
-    document.cookie = `${USERNAME_COOKIE}=; max-age=0; path=/; SameSite=Lax`;
 }

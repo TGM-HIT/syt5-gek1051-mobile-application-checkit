@@ -4,114 +4,143 @@ TA: Andreas Maurer
 
 ## Java 21
 
-Wir werden Java 21 verwenden, da es sich hierbei um eine Long-Term-Support-Version (LTS) handelt, die von Spring Boot vollständig unterstützt wird. Dabei spielt der Anbieter eigentlich keine Rolle, standardmäßig ist `ms-21` konfiguriert. Java weist aufgrund des JVM-Designs und des Garbage Collectors gegenüber Sprachen wie Rust theoretische Performance-Nachteile auf. Rust ist zwar memory-safe und effizienter, erfordert jedoch eine deutlich steilere Lernkurve.
+Wir verwenden Java 21, da es sich hierbei um eine Long-Term-Support-Version (LTS) handelt, die von Spring Boot vollständig unterstützt wird. Dabei spielt der Anbieter eigentlich keine Rolle, standardmäßig ist `eclipse-temurin:21` konfiguriert. Java weist aufgrund des JVM-Designs und des Garbage Collectors gegenüber Sprachen wie Rust theoretische Performance-Nachteile auf. Rust ist zwar memory-safe und effizienter, erfordert jedoch eine deutlich steilere Lernkurve.
 
 **Rationale**
 
 Da wir in den letzten vier Jahren intensiv mit Spring Boot und Java gearbeitet haben, ist ein Wechsel auf Rust zum jetzigen Zeitpunkt nicht zielführend. Auch wenn Rust technisch gesehen **die überlegene Lösung** darstellt, steht die Produktivität des Teams im Vordergrund. Ein Technologiewechsel würde die Entwicklungsgeschwindigkeit massiv bremsen und die Projektsicherheit gefährden.
 
-## Spring Boot 4.x.x
+## Spring Boot 4.0.2
 
-Da wir bereits umfassende Erfahrung mit dem Spring-Ökosystem gesammelt haben, werden wir für dieses Projekt die aktuelle Version **Spring Boot 4.x** einsetzen. Diese stellt mittlerweile den Industriestandard dar und bietet signifikante Performance-Vorteile. Bezüglich der spezifischen Libraries bleiben wir in der Umsetzung flexibel, doch als initiales Grundgerüst hätte ich gesagt:
+Da wir bereits umfassende Erfahrung mit dem Spring-Ökosystem gesammelt haben, setzen wir auf **Spring Boot 4.0.2**. Diese stellt mittlerweile den Industriestandard dar und bietet signifikante Performance-Vorteile. Das Backend dient primär als Einstiegspunkt und REST-Schicht; die Datenhaltung übernimmt CouchDB direkt. Die verwendeten Dependencies:
 
-- **Spring Web:** Als bewährtes Fundament für unsere RESTful Services.
+- **Spring Web (`spring-boot-starter-webmvc`):** Fundament für RESTful Services.
 
-- **SpringDoc OpenAPI:** Zur automatisierten Generierung der Swagger-Dokumentation, um eine nahtlose API-Kollaboration sicherzustellen.
+> **Geändert gegenüber Plan:** SpringDoc OpenAPI, Lombok und MapStruct wurden nicht eingesetzt. Der Umfang des Backends ist geringer als ursprünglich geplant, da die Datenlogik vollständig über PouchDB ↔ CouchDB abgebildet wird und kein eigener ORM-Layer benötigt wird.
 
-- **Lombok:** Zur Reduzierung von Boilerplate-Code und Steigerung der Wartbarkeit.
+## BLAKE2s-128
 
-- **MapStruct:** Für ein typsicheres und performantes Bean-Mapping zwischen unseren Entitäten und DTOs.
+~~BLAKE3~~ → **BLAKE2s-128** wird für die URL-Generierung der Einkaufslisten verwendet. Der Algorithmus ist Teil der BLAKE-Familie und bietet ausreichend Entropie bei minimaler Implementierungskomplexität im Browser. Eingesetzt wird die Library `blakejs` (v1.2.1).
 
-## Blake3
+Um eine neue Einkaufsliste anzulegen, wird der Hash wie folgt berechnet:
 
-BLAKE3 gilt derzeit als einer der effizientesten Hashing-Algorithmen. Er übertrifft selbst hardwarebeschleunigtes SHA-256 in der Geschwindigkeit, da er auf einer Merkle-Baum-Struktur [1] basiert. Diese Architektur ermöglicht eine starke Parallelisierung der Berechnungen und macht BLAKE3 zur idealen Wahl für die Generierung unvorhersehbarer, performanter URLs für unsere Einkaufslisten
+```
+blake2s_128(String(total_lists_created) + PEPPER)
+```
 
+Der resultierende 32-stellige Hex-Hash dient als eindeutiger Identifikator in der URL:
+
+```
 https://checkit.com/list/[LIST_HASH]
+```
 
-Um eine neue Einkaufsliste hinzuzufügen, wird die ID generiert, indem die Summe der **jemals** exestierten Listen **mit pepper** aus der `.env` Datei und  **ohne salt** addiert und mit BLAKE3 auf **128 bit** gehasht wird. Der resultierende Hash dient als eindeutiger Identifikator für die URL (oben [LIST_HASH]). Das Verfahren lässt sich mit folgendem Pseudocode beschreiben: `blake3_hash(total_lists_created)`
-
-In CouchDB soll für jede neu erstellte Liste `global_stats.total_lists_created` um eins erhöht werden. Beispielsweise hier (die Namen können auch angepasst werden):
+`total_lists_created` wird in CouchDB unter `_id: "global_stats"` gespeichert:
 
 ```json
 {
   "_id": "global_stats",
-  "total_lists_created": 1542,
-  "type": "metadata"
+  "total_lists_created": 1542
 }
 ```
 
-Bei jedem erstellten Eintrag in der Liste wird ebenfalls eine eigene URL erstellt:
-
-https://checkit.com/list/[LIST_HASH]/[PRODUCT_HASH]
-
-Der Produkt-Hash (oben PRODUCT_HASH) wird aus den Namen des Produkts generiert. Hierzu wird der Produktname zunächst normalisiert (leerzeichenbereinigt und kleingeschrieben) und anschließend mittels BLAKE3 **ohne pepper** und **ohne salt** auf **64 bit** gehasht.
-
-https://checkit.com/list/d63bd9a826af91c1fea371965a64e150/063bd9a826af91c1
+> **Geändert gegenüber Plan:** Per-Artikel-URLs (`/list/[LIST_HASH]/[PRODUCT_HASH]`) wurden **nicht implementiert**. Artikel erhalten eine einfache numerische ID via `Date.now().toString()`. Kollisionen innerhalb einer Liste sind bei dieser Granularität praktisch ausgeschlossen.
 
 **Rationale**
 
-Wir werden BLAKE3 verwenden, da er unvergleichbar effizient ist. Um zu verhindern, dass unbefugte Dritte durch einfaches Durchprobieren von Zahlenwerten (Iterieren) fremde Einkaufslisten finden können, verwenden wir zusätzlich einen Salt. Eine Schlüssellänge von 128 Bit bietet dabei eine so enorme Entropie, dass ein Brute-Force-Angriff nach menschlichem Ermessen schlichtweg unmöglich ist.
+BLAKE2s-128 ist im Browser ohne WASM-Overhead verfügbar und liefert mit 128 Bit ausreichend Entropie, um Brute-Force-Enumeration fremder Listen zu verhindern. Der Pepper aus der `.env`-Datei verhindert zusätzlich, dass die Counter-Sequenz ohne Kenntnis des Secrets vorhergesagt werden kann.
 
-Beim Produkt-Hash hingegen ist die Ausgangslage eine andere: Da hier lediglich Kollisionen innerhalb einer begrenzten Liste vermieden werden müssen, ist eine Schlüssellänge von 64 Bit mehr als ausreichend. Solange man davon ausgeht, dass ein Benutzer pro Liste weniger als 610 Millionen Elemente verwaltet, bleibt das Risiko einer Kollision statistisch vernachlässigbar gering.
+## BLAKE2s-128 für Passwörter
 
-## BCrypt
+~~BCrypt~~ → Die Passwort-Authentifizierung ist vollständig im Frontend implementiert (`src/utils/auth.ts`). Passwörter werden mit **BLAKE2s-128** gehasht und zusammen mit dem Benutzernamen im `localStorage` abgelegt:
 
-Wir werden den hashing Algorythmus BCrypt verwenden. Er ist ein rechenintensiver Hash, der Angriffe durch hohen CPU-Aufwand bremst. Da er jedoch kaum RAM benötigt, lässt er sich mit GPUs oder ASICs effizient parallelisieren, was ihn anfällig für moderne Hardware-Cluster macht. Der hashing Algorythmus Argon2id erzwingt dagegen eine hohe RAM-Belegung (Memory Hardness), was die Speicherbandbreite von Grafikkarten blockiert und Brute-Force-Angriffe extrem erschwert.
+```
+blake2s_128(plain_text_password)
+```
 
-Die Authentifizierung ist ein Nice-To-Have. Zur Sicherung der Accounts werden die Passwörter zusammen mit einem globalen **Pepper** aus der `.env`-Datei  mithilfe von **BCrypt** gehasht.
+```typescript
+// Speicherformat in localStorage ("checkit_accounts")
+{ "alice": "a3f1...", "bob": "9c2e..." }
+```
 
-`bcrypt_hash(plain_text_password + pepper)` 
+> **Geändert gegenüber Plan:** BCrypt wurde nicht eingesetzt. Da kein dedizierter Auth-Server vorhanden ist, erfolgt die Verifikation rein clientseitig. BCrypt wäre für serverseitige Authentifizierung die korrekte Wahl gewesen; im aktuellen Modell (lokaler Speicher) bringt die Rechenintensität von BCrypt keinen Sicherheitsgewinn.
 
 **Rationale**
 
-Trotz der Vorteile von Argon2id setzen wir für unser System auf BCrypt, um die Kompatibilität mit ressourcenarmen Embedded-Umgebungen zu gewährleisten und diese nicht unnötig zu belasten. Da Einkaufslisten keine hochsensiblen Daten enthalten, steht der Aufwand eines industrialisierten Cluster-Angriffs für Hacker in keinem wirtschaftlichen Verhältnis zum Nutzen. Zudem optimieren wir so die Deployment-Kosten, da durch den minimalen Speicherbedarf des Algorithmus die RAM-Anforderungen deutlich gesenkt werden können.
+BLAKE2s-128 ist für den Anwendungsfall ausreichend: Einkaufslisten enthalten keine hochsensiblen Daten, und der Aufwand eines gezielten Angriffs auf `localStorage`-Daten übersteigt den Nutzen. Die Session wird über ein `SameSite=Lax`-Cookie mit einem Jahr Laufzeit gehalten.
 
 ---
 
 ## Yarn
 
-Für unser Projekt habe ich mich bewusst für Yarn entschieden, da er im Vergleich zu npm einige Vorteile bietet. Einerseits ist Yarn performanter, aber die deterministische `yarn.lock` garantiert uns, dass jeder Entwickler im Team exakt die gleich Version aller Bibliotheken hat.
+Für das Projekt wurde bewusst Yarn gewählt, da er im Vergleich zu npm einige Vorteile bietet. Yarn ist performanter, und die deterministische `yarn.lock` garantiert, dass jeder Entwickler im Team exakt die gleiche Version aller Bibliotheken hat.
 
 **Rationale**
 
-Der Unterschied zu npm ist vom schwierigkeitsgrad nicht sehr gross. Einige von uns haben bereit bei Firebase mit yarn gearbeitet. Die "iT wOrKs oN mY MaChInE"-Probleme sind dadurch beseitigt.
+Der Unterschied zu npm ist vom Schwierigkeitsgrad nicht sehr groß. Einige von uns haben bereits bei Firebase mit Yarn gearbeitet. Die "iT wOrKs oN mY MaChInE"-Probleme sind dadurch beseitigt.
 
-## Vue.js
+## Vue.js 3 + Vite
 
-Für das Frontend setzen wir auf Vue.js, um von unserer bestehenden Erfahrung zu profitieren. Das Framework ermöglicht uns eine schnelle Entwicklung bei gleichzeitig hoher Wartbarkeit. Unser Setup umfasst dabei folgende Kernkomponenten:
+Für das Frontend setzen wir auf **Vue.js 3** mit **Vite** als Build-Tool. Das Framework ermöglicht schnelle Entwicklung bei hoher Wartbarkeit. Unser Setup umfasst folgende Kernkomponenten:
 
-- **Vue Router:** Die offizielle Bibliothek für das Routing, um eine nahtlose Navigation zwischen den verschiedenen Ansichten (z. B. `/home`, `/dashboard`) innerhalb unserer Single Page Application (SPA) zu ermöglichen.
+- **Vue Router 4:** Routing innerhalb der SPA (z. B. `/`, `/list/:hash`, `/login`, `/register`).
 
-- **Axios:** Ein versprechensbasierter HTTP-Client, mit dem wir die Kommunikation zwischen dem Vue-Frontend und unserer Spring-Boot-API effizient abwickeln.
+- **Vuetify 3:** UI-Framework auf Basis von Material Design. Bietet fertige Komponenten (Buttons, Tabellen, Dialoge), sodass kein eigenes CSS für das Design nötig ist.
 
-- **Vuetify:** Ein umfangreiches UI-Framework, das auf Google's *Material Design* basiert. Es bietet uns fertige, hochgradig anpassbare Komponenten (Buttons, Tabellen, Formulare), sodass wir kein eigenes CSS für das Design schreiben müssen und ein professionelles Look-and-Feel erhalten.
+- **PouchDB 9:** Lokale In-Browser-Datenbank (IndexedDB-backed) mit bidirektionalem Live-Sync zu CouchDB. Ersetzt einen klassischen HTTP-Client gegenüber dem Backend vollständig für die Datenhaltung.
+
+- **blakejs 1.2.1:** BLAKE2s-Implementierung in reinem JavaScript, eingesetzt für Listen-URL-Hashing und Passwort-Hashing.
+
+- **Tesseract.js 7:** OCR-Library für die Preisschilderkennung (Story 20).
+
+> **Geändert gegenüber Plan:** **Axios** wurde nicht eingesetzt. Das Frontend kommuniziert nicht über REST mit dem Spring-Boot-Backend, sondern schreibt und liest direkt über PouchDB ↔ CouchDB. Ein klassischer HTTP-Client ist daher nicht erforderlich.
 
 **Rationale**
 
-Wir kennen uns bereits mit Vue.js aus und ein Umstieg auf React wäre in unserer Situation nicht logisch. Darüber hinaus sind neue Versionen von Vue.js vergleichbar effizient wie andere Frameworks.
+Wir kennen uns bereits mit Vue.js aus, und ein Umstieg auf React wäre nicht zielführend. Neue Vue-Versionen sind in der Performance mit anderen Frameworks vergleichbar.
 
-## Database Structure
+## Datenbankstruktur
 
-```
+```json
+// Globale Statistiken
 {
   "_id": "global_stats",
-  "total_lists_created": 1542,
-  "type": "metadata"
+  "total_lists_created": 1542
 }
 
+// Einkaufsliste
 {
-    _id: <hash>,
-    deleted: true,
-    name: Liste1,
-    articles: [
-        {checked: false, name: 14, gewicht: 5},
-        {checked: true, name: bier, gewicht 0.5},
-        {checked: false, name: 1, gewicht: 4}
-    ],
-    version: timestamp
+  "_id": "<blake2s-128-hash>",
+  "name": "Wocheneinkauf",
+  "items": [
+    {
+      "id": "1718000000000",
+      "name": "Milch",
+      "menge": "2",
+      "preis": "1.29",
+      "done": false,
+      "category": "Milchprodukte",
+      "updatedAt": "2025-03-20T10:00:00.000Z"
+    }
+  ],
+  "savedAt": "2025-03-20T10:00:00.000Z",
+  "savedBy": "alice",
+  "conflictResolution": {
+    "resolvedBy": "alice",
+    "resolvedAt": "2025-03-20T10:05:00.000Z"
+  }
+}
+
+// User-Listen-Index (pro Benutzer)
+{
+  "_id": "user_lists:alice",
+  "lists": [
+    { "hash": "d63bd9a8...", "name": "Wocheneinkauf", "createdAt": "2025-03-01T08:00:00.000Z" }
+  ]
 }
 ```
 
-## Refrences
+> **Geändert gegenüber Plan:** Feldnamen wurden angepasst: `articles` → `items`, `checked` → `done`, `gewicht` → `menge`. Das Feld `deleted` entfällt (CouchDB-Konflikte werden über `_conflicts` und `conflictResolution` behandelt). Versionierung erfolgt über CouchDB-eigenes `_rev` statt einem manuellen `version`-Timestamp. Neue Felder: `savedAt`, `savedBy`, `conflictResolution`, `preis`, `category`, `updatedAt`.
+
+## References
 
 [1] [Merkle tree - Wikipedia](https://en.wikipedia.org/wiki/Merkle_tree)
