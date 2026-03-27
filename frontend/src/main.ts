@@ -24,9 +24,9 @@ import { isLoggedIn } from './utils/auth'
 const vuetify = createVuetify({ components, directives })
 
 const routes: Array<RouteRecordRaw> = [
-  { path: '/',          name: 'Home',     component: HomeView },
-  { path: '/list/:hash',name: 'ListView', component: ListView },
-  { path: '/settings',  name: 'Settings', component: SettingsView },
+  { path: '/',          name: 'Home',     component: HomeView,     meta: { requiresAuth: true } },
+  { path: '/list/:hash',name: 'ListView', component: ListView,     meta: { requiresAuth: true } },
+  { path: '/settings',  name: 'Settings', component: SettingsView, meta: { requiresAuth: true } },
   { path: '/login',     name: 'Login',    component: LoginView },
   { path: '/register',  name: 'Register', component: RegisterView },
   { path: '/debug',     name: 'Debug',    component: DebugView },

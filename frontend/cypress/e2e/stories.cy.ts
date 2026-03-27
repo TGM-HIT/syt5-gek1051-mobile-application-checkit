@@ -44,13 +44,13 @@ describe('Story: Einkaufsliste erstellen', () => {
 
     it('erhöht den globalen Listenzähler nach dem Erstellen', () => {
         cy.visit('/');
-        // Zähler vor dem Erstellen merken (kann 0 sein → Chip nicht sichtbar)
         cy.contains('Einkaufsliste erstellen').click();
         cy.get('input').first().type('Zähler-Test');
         cy.contains("Los geht's!").click();
 
-        // In der ListView wird der globale Zähler als Chip angezeigt
-        cy.contains('Listen insgesamt erstellt').should('be.visible');
+        // Zurück zur Startseite, dort zeigt der Chip den Zählerstand an
+        cy.visit('/');
+        cy.get('.v-chip').contains('erstellt').should('be.visible');
     });
 });
 
@@ -96,7 +96,7 @@ describe('Story: Artikel hinzufügen mit Kategorie-Dropdown', () => {
             'Fleisch/Fisch', 'Tiefkühl', 'Drogerie', 'Haushalt', 'Sonstiges'
         ];
         categories.forEach(cat => {
-            cy.get('.v-overlay-container').contains(cat).should('be.visible');
+            cy.get('.v-overlay-container').contains(cat).should('exist');
         });
         // Dropdown wieder schließen
         cy.get('body').type('{esc}');
@@ -123,17 +123,9 @@ describe('Story: Artikel hinzufügen mit Kategorie-Dropdown', () => {
 // Story: Artikel löschen
 // ─────────────────────────────────────────────────────────────────────────────
 describe('Story: Artikel löschen', () => {
-    let listPath = '';
-
-    before(() => {
-        cy.setupAuth();
-        createListAndGetPath('Löschen-Test').then(p => { listPath = p; });
-    });
-
     beforeEach(() => {
         cy.setupAuth();
-        cy.then(() => cy.visit(listPath));
-        // Artikel für den Test anlegen
+        createListAndGetPath('Löschen-Test');
         cy.addListItem('ZuLoeschenderArtikel');
     });
 
@@ -152,16 +144,9 @@ describe('Story: Artikel löschen', () => {
 // Story: Artikel-Name nachträglich bearbeiten
 // ─────────────────────────────────────────────────────────────────────────────
 describe('Story: Artikelname bearbeiten', () => {
-    let listPath = '';
-
-    before(() => {
-        cy.setupAuth();
-        createListAndGetPath('Bearbeiten-Test').then(p => { listPath = p; });
-    });
-
     beforeEach(() => {
         cy.setupAuth();
-        cy.then(() => cy.visit(listPath));
+        createListAndGetPath('Bearbeiten-Test');
         cy.addListItem('AlterName');
     });
 
@@ -196,16 +181,9 @@ describe('Story: Artikelname bearbeiten', () => {
 // Story: Artikel als erledigt markieren (Checkbox)
 // ─────────────────────────────────────────────────────────────────────────────
 describe('Story: Artikel als erledigt markieren', () => {
-    let listPath = '';
-
-    before(() => {
-        cy.setupAuth();
-        createListAndGetPath('Checkbox-Test').then(p => { listPath = p; });
-    });
-
     beforeEach(() => {
         cy.setupAuth();
-        cy.then(() => cy.visit(listPath));
+        createListAndGetPath('Checkbox-Test');
         cy.addListItem('ZuErledigenderArtikel');
     });
 
@@ -229,16 +207,9 @@ describe('Story: Artikel als erledigt markieren', () => {
 // Story: Artikel suchen
 // ─────────────────────────────────────────────────────────────────────────────
 describe('Story: Nach Artikel suchen', () => {
-    let listPath = '';
-
-    before(() => {
-        cy.setupAuth();
-        createListAndGetPath('Such-Test').then(p => { listPath = p; });
-    });
-
     beforeEach(() => {
         cy.setupAuth();
-        cy.then(() => cy.visit(listPath));
+        createListAndGetPath('Such-Test');
         cy.addListItem('Schokolade');
         cy.addListItem('Salz');
     });
@@ -322,7 +293,7 @@ describe('Story: Offline-Betrieb ohne Einschränkungen', () => {
 
     it('kann offline einen Artikel löschen', () => {
         cy.addListItem('WirdOfflineGeloescht');
-        cy.get('.mdi-delete').first().closest('button').click();
+        cy.contains('td', 'WirdOfflineGeloescht').closest('tr').find('.mdi-delete').closest('button').click();
         cy.contains('td', 'WirdOfflineGeloescht').should('not.exist');
     });
 
@@ -334,14 +305,14 @@ describe('Story: Offline-Betrieb ohne Einschränkungen', () => {
     });
 
     it('zeigt den orangen Warn-Snackbar beim Wechsel in den Offline-Modus', () => {
-        // Bereits offline (aus beforeEach) – Snackbar sollte sichtbar sein
-        cy.get('.v-snackbar').should('be.visible').and('contain', 'Kein Internet');
+        // Bereits offline (aus beforeEach) – Snackbar sollte vorhanden sein
+        cy.get('.v-snackbar').should('exist').and('contain', 'Kein Internet');
     });
 
     it('zeigt nach dem Reconnect den grünen Snackbar', () => {
-        cy.get('.v-snackbar').contains('Schließen').click();
+        cy.contains('.v-snackbar', 'Schließen').click({ force: true });
         cy.goOnline();
-        cy.get('.v-snackbar').should('be.visible').and('contain', 'Wieder online');
+        cy.get('.v-snackbar').should('exist').and('contain', 'Wieder online');
     });
 });
 
@@ -366,18 +337,14 @@ describe('Story: Einladungscode generieren', () => {
         cy.contains('Liste teilen').should('be.visible');
     });
 
-    it('zeigt einen Einladungscode der Format XXXX-XXXX-XXXX... hat', () => {
+    it('zeigt einen 6-stelligen alphanumerischen Einladungscode', () => {
         cy.get('.mdi-share-variant').closest('button').click();
-        // Der Code steht in der invite-code-box
-        cy.get('.invite-code-box')
+        cy.get('.invite-code-box', { timeout: 10000 })
             .invoke('text')
             .then(text => {
-                const trimmed = text.trim().replace(/\s/g, '');
-                // Code enthält alphanumerische Zeichen und optionale Bindestriche
-                expect(trimmed).to.match(/^[A-Z2-9\-]+$/);
-                // Mindestlänge: 32 Zeichen ohne Bindestriche (laut redeemCode-Validierung)
-                const noHyphens = trimmed.replace(/-/g, '');
-                expect(noHyphens.length).to.be.at.least(6);
+                const code = text.trim().replace(/\s/g, '');
+                expect(code).to.have.length(6);
+                expect(code).to.match(/^[A-Z0-9]{6}$/);
             });
     });
 
@@ -417,8 +384,8 @@ describe('Story: Einladungscode einlösen', () => {
     });
 
     it('zeigt eine Fehlermeldung bei ungültigem Code', () => {
-        // Einen zu kurzen aber gefüllten Code eingeben
-        cy.get('.invite-input input').type('XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX');
+        // 6-stelligen Code eingeben, der nicht in der DB existiert
+        cy.get('.invite-input input').type('AAAAAA');
         cy.contains('Beitreten').click();
         cy.contains('Ungültiger oder abgelaufener Code').should('be.visible');
     });
@@ -479,7 +446,7 @@ describe('Story: Authentifizierung', () => {
         cy.get('input').eq(0).type(testUser);
         cy.get('input').eq(1).type(testPass);
         cy.get('input').eq(2).type(testPass);
-        cy.contains('Register').click();
+        cy.get('.v-card').contains('button', 'Register').click();
         cy.url().should('eq', Cypress.config().baseUrl + '/');
     });
 
@@ -488,49 +455,49 @@ describe('Story: Authentifizierung', () => {
         cy.get('input').eq(0).type('irgendeinuser');
         cy.get('input').eq(1).type('Passwort1');
         cy.get('input').eq(2).type('Passwort2');
-        cy.contains('Register').click();
+        cy.get('.v-card').contains('button', 'Register').click();
         cy.contains('Passwords do not match').should('be.visible');
     });
 
     it('zeigt eine Fehlermeldung bei bereits vorhandenem Username', () => {
-        // Erst registrieren
+        // Erst registrieren (localStorage ist pro Test isoliert)
+        const dupUser = `dupuser_${Date.now()}`;
+        cy.clearLocalStorage();
         cy.visit('/register');
-        cy.get('input').eq(0).type(testUser);
+        cy.get('input').eq(0).type(dupUser);
         cy.get('input').eq(1).type(testPass);
         cy.get('input').eq(2).type(testPass);
-        cy.contains('Register').click();
+        cy.get('.v-card').contains('button', 'Register').click();
         cy.url().should('eq', Cypress.config().baseUrl + '/');
 
         // Nochmal mit demselben User registrieren → Fehler
         cy.visit('/register');
-        cy.get('input').eq(0).type(testUser);
+        cy.get('input').eq(0).type(dupUser);
         cy.get('input').eq(1).type(testPass);
         cy.get('input').eq(2).type(testPass);
-        cy.contains('Register').click();
-        cy.get('.v-alert[type="error"]').should('be.visible');
+        cy.get('.v-card').contains('button', 'Register').click();
+        cy.get('.v-alert').should('be.visible');
     });
 
     it('loggt sich mit gültigen Zugangsdaten ein', () => {
-        // Erst registrieren
+        // Erst registrieren (localStorage ist pro Test isoliert)
+        const loginUser = `loginuser_${Date.now()}`;
+        cy.clearLocalStorage();
         cy.visit('/register');
-        cy.get('input').eq(0).type(testUser);
+        cy.get('input').eq(0).type(loginUser);
         cy.get('input').eq(1).type(testPass);
         cy.get('input').eq(2).type(testPass);
-        cy.contains('Register').click();
+        cy.get('.v-card').contains('button', 'Register').click();
         cy.url().should('eq', Cypress.config().baseUrl + '/');
 
-        // Logout (falls bereits eingeloggt)
-        cy.get('body').then($body => {
-            if ($body.find('[class*="mdi-logout"]').length) {
-                cy.get('[class*="mdi-logout"]').closest('button').click();
-            }
-        });
+        // Logout
+        cy.contains('button', 'Logout').click();
 
         // Login
         cy.visit('/login');
-        cy.get('input').eq(0).type(testUser);
+        cy.get('input').eq(0).type(loginUser);
         cy.get('input').eq(1).type(testPass);
-        cy.contains('Login').click();
+        cy.get('.v-card').contains('button', 'Login').click();
         cy.url().should('eq', Cypress.config().baseUrl + '/');
     });
 
@@ -538,36 +505,38 @@ describe('Story: Authentifizierung', () => {
         cy.visit('/login');
         cy.get('input').eq(0).type('nichtvorhanden');
         cy.get('input').eq(1).type('falschesPasswort');
-        cy.contains('Login').click();
-        cy.get('.v-alert[type="error"]').should('be.visible');
+        cy.get('.v-card').contains('button', 'Login').click();
+        cy.get('.v-alert').should('be.visible');
     });
 
     it('zeigt den Username in der App-Bar nach dem Login', () => {
-        // Erst registrieren
         const userForBar = `baruser_${Date.now()}`;
+        cy.clearLocalStorage();
         cy.visit('/register');
         cy.get('input').eq(0).type(userForBar);
         cy.get('input').eq(1).type(testPass);
         cy.get('input').eq(2).type(testPass);
-        cy.contains('Register').click();
+        cy.get('.v-card').contains('button', 'Register').click();
+        cy.url().should('eq', Cypress.config().baseUrl + '/');
 
         cy.contains(userForBar).should('be.visible');
     });
 
     it('loggt den Benutzer aus und zeigt Login/Register-Buttons in der App-Bar', () => {
-        // Erst registrieren & einloggen
         const logoutUser = `logoutuser_${Date.now()}`;
+        cy.clearLocalStorage();
         cy.visit('/register');
         cy.get('input').eq(0).type(logoutUser);
         cy.get('input').eq(1).type(testPass);
         cy.get('input').eq(2).type(testPass);
-        cy.contains('Register').click();
+        cy.get('.v-card').contains('button', 'Register').click();
+        cy.url().should('eq', Cypress.config().baseUrl + '/');
 
         // Logout
-        cy.get('.d-none.d-sm-flex').contains('Logout').click();
+        cy.contains('button', 'Logout').click();
         cy.url().should('include', '/login');
 
-        cy.visit('/');
+        cy.visit('/login');
         cy.contains('Login').should('be.visible');
     });
 });

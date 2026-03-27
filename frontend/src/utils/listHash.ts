@@ -244,62 +244,51 @@ export async function getListName(hash: string): Promise<string | null> {
     }
 }
 
-// ─── Invite codes (self-contained, no DB lookup needed) ─────────────────────
+// ─── Invite codes (DB-backed, 6-char) ────────────────────────────────────────
 
-const INVITE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // 32 chars, no I/O/0/1
-const INVITE_EXPIRY_HOURS = 24;
+const INVITE_CHARS    = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no I/O/0/1
+const INVITE_CODE_LEN = 6;
+const INVITE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+interface InviteDoc {
+    _id:      string;
+    _rev?:    string;
+    listHash: string;
+    listName: string;
+    expiresAt: string; // ISO timestamp
+}
+
+function generateCode(): string {
+    const bytes = new Uint8Array(INVITE_CODE_LEN);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes).map(b => INVITE_CHARS[b % INVITE_CHARS.length]).join('');
+}
 
 /**
- * Encodes a 32-char hex hash + expiry timestamp into a self-contained invite code.
- * Format: BASE32(hash_bytes + expiry_uint32_be)
- * Result: 32 chars, displayed in groups of 4 for readability.
+ * Creates a 6-char alphanumeric invite code stored in CouchDB.
+ * The code expires after 24 hours.
  */
-export function createInviteCode(listHash: string): string {
-    const hashBytes = new Uint8Array(16);
-    for (let i = 0; i < 16; i++) {
-        hashBytes[i] = parseInt(listHash.slice(i * 2, i * 2 + 2), 16);
-    }
-    const expiryHours = Math.floor(Date.now() / 3600000) + INVITE_EXPIRY_HOURS;
-    const expiryBytes = new Uint8Array(4);
-    new DataView(expiryBytes.buffer).setUint32(0, expiryHours);
-    const combined = new Uint8Array(20);
-    combined.set(hashBytes);
-    combined.set(expiryBytes, 16);
-    // Base32 encode (5 bits per char): 20 bytes = 160 bits = 32 chars
-    let bits = '';
-    for (const b of combined) bits += b.toString(2).padStart(8, '0');
-    let code = '';
-    for (let i = 0; i < bits.length; i += 5) {
-        code += INVITE_CHARS[parseInt(bits.slice(i, i + 5), 2)];
-    }
+export async function createInviteCode(listHash: string, listName: string): Promise<string> {
+    const code = generateCode();
+    await listDb.put<InviteDoc>({
+        _id:       `invite_${code}`,
+        listHash,
+        listName,
+        expiresAt: new Date(Date.now() + INVITE_EXPIRY_MS).toISOString(),
+    });
     return code;
 }
 
-/** Formats a code with dashes for display: XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX */
-export function formatInviteCode(code: string): string {
-    return code.match(/.{1,4}/g)?.join('-') ?? code;
-}
-
-/** Decodes an invite code back to listHash + checks expiry. */
+/** Redeems a 6-char invite code. Returns { listHash, listName } or null if invalid/expired. */
 export async function redeemInviteCode(code: string): Promise<{ listHash: string; listName: string } | null> {
-    const clean = code.toUpperCase().replace(/[^A-Z2-9]/g, '');
-    if (clean.length !== 32) return null;
-    let bits = '';
-    for (const c of clean) {
-        const idx = INVITE_CHARS.indexOf(c);
-        if (idx < 0) return null;
-        bits += idx.toString(2).padStart(5, '0');
+    const clean = code.replace(/\s/g, '').toUpperCase();
+    if (clean.length !== INVITE_CODE_LEN) return null;
+    try {
+        const doc = await listDb.get<InviteDoc>(`invite_${clean}`);
+        if (new Date(doc.expiresAt) < new Date()) return null;
+        return { listHash: doc.listHash, listName: doc.listName };
+    } catch (err: any) {
+        if (err.status === 404) return null;
+        throw err;
     }
-    const bytes = new Uint8Array(20);
-    for (let i = 0; i < 20; i++) {
-        bytes[i] = parseInt(bits.slice(i * 8, i * 8 + 8), 2);
-    }
-    let listHash = '';
-    for (let i = 0; i < 16; i++) listHash += (bytes[i] ?? 0).toString(16).padStart(2, '0');
-    const expiryHours = new DataView(bytes.buffer).getUint32(16);
-    const nowHours = Math.floor(Date.now() / 3600000);
-    if (nowHours > expiryHours) return null;
-    const name = await getListName(listHash);
-    if (!name) return null;
-    return { listHash, listName: name };
 }

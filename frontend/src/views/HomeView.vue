@@ -69,7 +69,7 @@
                 color="primary"
                 height="48"
                 :loading="redeemLoading"
-                :disabled="cleanCode.length < 32"
+                :disabled="cleanCode.length < 6"
                 @click="redeemCode"
             >
               Beitreten
@@ -117,7 +117,7 @@ const creating  = ref(false);
 const totalListsCreated = ref(0);
 const userLists = ref<UserListEntry[]>([]);
 const inviteCode    = ref('');
-const cleanCode     = computed(() => inviteCode.value.toUpperCase().replace(/[^A-Z2-9]/g, ''));
+const cleanCode     = computed(() => inviteCode.value.replace(/\s/g, '').toUpperCase());
 const redeemLoading = ref(false);
 const redeemError   = ref('');
 
@@ -147,7 +147,7 @@ const navigateToTable = async () => {
 };
 
 const redeemCode = async () => {
-  if (cleanCode.value.length < 32 || redeemLoading.value) return;
+  if (cleanCode.value.length < 6 || redeemLoading.value) return;
   redeemError.value = '';
   redeemLoading.value = true;
   try {
