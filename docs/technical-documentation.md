@@ -174,6 +174,19 @@ Beide klicken **OK**. Wenn Anna oder Clara mit Bens Entscheidung nicht einversta
 
 > Als Benutzer möchte ich meine Artikel in Kategorien einteilen, um sie besser zu finden.
 
+ - addItem(): Beim Erstellen eines neuen Objekts wird der Wert von 
+selectedCategory.value in das neue ListItem gemappt.
+
+ - Persistence: Die Kategorie wird zusammen mit dem Item-Objekt in der 
+PouchDB/CouchDB gespeichert und somit geräteübergreifend synchronisiert.
+
+Die v-data-table nutzt das Prop :group-by="[{ key: 'category', order: 'asc' }]",
+um Artikel automatisch in kategorisierten Sektionen darzustellen.
+
+Das Interface ListItem wurde um das Feld category erweitert:
+
+ - Feld: category: string
+ - Standardwert: "Sonstiges"
 ## Story 10 – Technical Report
 
 > Als Techincal Architect will ich einen Technical Report haben, welche die verwendeten Technologien den Teammitgliedern näher bringt, damit sie effizient arbeiten können.
