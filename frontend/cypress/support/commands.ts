@@ -60,7 +60,7 @@ Cypress.Commands.add('goOffline', () => {
 
 Cypress.Commands.add('goOnline', () => {
   cy.contains('button', 'Offline').click();
-  cy.get('.v-alert').contains('Du bist offline').should('not.exist');
+  cy.contains('.v-alert', 'Du bist offline').should('not.exist');
 });
 
 Cypress.Commands.add('triggerBrowserOffline', () => {

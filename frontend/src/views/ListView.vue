@@ -129,7 +129,6 @@
               :headers="headers"
               :items="shoppingList"
               :search="searchQuery"
-              :group-by="[{ key: 'category', order: 'asc' }]"
               class="elevation-0 d-none d-sm-block"
               hide-default-footer
           >
@@ -399,7 +398,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { simulatedOffline, isOffline, lastSyncErrorMessage, listDb, createInviteCode, formatInviteCode, toggleOffline } from '@/utils/listHash';
+import { simulatedOffline, isOffline, lastSyncErrorMessage, listDb, createInviteCode, toggleOffline } from '@/utils/listHash';
 import type { ListItem, ListMeta, ConflictResolution, ConflictVersionSnapshot } from '@/utils/types';
 import { currentUser } from '@/utils/auth';
 import PriceTagScanDialog from '@/components/PriceTagScanDialog.vue';
@@ -569,11 +568,12 @@ const filteredList = computed(() => {
 });
 
 const headers = [
-  { title: 'Done',     key: 'done',    align: 'start' as const, sortable: false, width: '50px' },
-  { title: 'Artikel',  key: 'name',    align: 'start' as const, sortable: true },
-  { title: 'Menge',    key: 'menge',   align: 'start' as const, sortable: true },
-  { title: 'Preis',    key: 'preis',   align: 'start' as const, sortable: true },
-  { title: 'Aktionen', key: 'actions', align: 'end'   as const, sortable: false },
+  { title: 'Done',      key: 'done',     align: 'start' as const, sortable: false, width: '50px' },
+  { title: 'Artikel',   key: 'name',     align: 'start' as const, sortable: true },
+  { title: 'Kategorie', key: 'category', align: 'start' as const, sortable: true },
+  { title: 'Menge',     key: 'menge',    align: 'start' as const, sortable: true },
+  { title: 'Preis',     key: 'preis',    align: 'start' as const, sortable: true },
+  { title: 'Aktionen',  key: 'actions',  align: 'end'   as const, sortable: false },
 ];
 
 // ── DB operations ─────────────────────────────────────────────────────────────
@@ -744,6 +744,9 @@ const formatTime = (iso?: string | null): string => {
 
 const addItem = async () => {
   if (!searchQuery.value) return;
+  // Ensure the document is loaded before adding (race-condition guard)
+  if (!listDoc) await fetchItems();
+  if (!listDoc) return;
   const newItem: ListItem = {
     id:        Date.now().toString(),
     name:      searchQuery.value,
@@ -765,9 +768,8 @@ const onScanned = (data: { name: string; preis: string }) => {
   newItemPreis.value = data.preis;
 };
 
-const generateInvite = () => {
-  const raw = createInviteCode(listHash.value);
-  inviteCode.value  = formatInviteCode(raw);
+const generateInvite = async () => {
+  inviteCode.value   = await createInviteCode(listHash.value, listDoc?.name ?? '');
   inviteDialog.value = true;
 };
 

@@ -55,7 +55,7 @@
       </v-col>
     </v-row>
 
-    <v-snackbar v-model="snackbar" :color="snackbarColor" timeout="3000">
+    <v-snackbar v-model="snackbar" :color="snackbarColor" timeout="5000">
       {{ snackbarText }}
     </v-snackbar>
   </v-container>
@@ -83,10 +83,10 @@ const clearLocalData = async () => {
     // Destroy and recreate local PouchDB — remote CouchDB is untouched.
     // The next sync will pull data back from the server.
     await listDb.destroy();
-    snackbarText.value  = 'Lokaler Cache wurde geleert. Seite neu laden…';
+    snackbarText.value  = 'Cache wurde geleert. Seite wird neu geladen…';
     snackbarColor.value = 'success';
     snackbar.value = true;
-    setTimeout(() => window.location.reload(), 1500);
+    setTimeout(() => window.location.reload(), 4000);
   } catch {
     snackbarText.value  = 'Fehler beim Löschen des Caches.';
     snackbarColor.value = 'error';
