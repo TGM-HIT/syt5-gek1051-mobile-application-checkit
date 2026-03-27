@@ -11,29 +11,29 @@
 *HEAD: STEE | Prio: MH | SP: 5*
 
 > Als Benutzer möchte ich neue Artikel zu meiner Liste hinzufügen können und auch in der Liste danach Suchen.
+
 ### Technische Umsetzung
 
 Die Umsetzung erfolgt durch eine reaktive Verknüpfung der Eingabefelder mit dem lokalen State und der PouchDB.
 
 1. Reaktivität & Suche:
-Das zentrale Eingabefeld ist per v-model an searchQuery gebunden. Diese Variable erfüllt eine Doppelfunktion:
-
+   Das zentrale Eingabefeld ist per v-model an searchQuery gebunden. Diese Variable erfüllt eine Doppelfunktion:
+   
     Suche: Eine computed property namens filteredList filtert das shoppingList-Array in Echtzeit:
     TypeScript
-
-    ```
-    const filteredList = computed(() => {
-      if (!searchQuery.value) return shoppingList.value;
-      const q = searchQuery.value.toLowerCase();
-      return shoppingList.value.filter(i => i.name.toLowerCase().includes(q));
-    });
-    ```
-
+   
+   ```
+   const filteredList = computed(() => {
+     if (!searchQuery.value) return shoppingList.value;
+     const q = searchQuery.value.toLowerCase();
+     return shoppingList.value.filter(i => i.name.toLowerCase().includes(q));
+   });
+   ```
+   
     Hinzufügen: Beim Drücken der Enter-Taste oder des Plus-Buttons wird der Inhalt von searchQuery als Name für den neuen Artikel verwendet.
 
-3. Artikel-Erstellung (addItem):
-Ein neuer Artikel wird als Objekt vom Typ ListItem erstellt. Hierbei werden auch die Felder für Menge, Preis und Kategorie (selectedCategory) ausgelesen. Jeder Artikel erhält eine eindeutige ID via Date.now().toString(). Nach dem Hinzufügen zum Array wird das Feld geleert, um sofort für die nächste Suche bereit zu sein.
-
+2. Artikel-Erstellung (addItem):
+   Ein neuer Artikel wird als Objekt vom Typ ListItem erstellt. Hierbei werden auch die Felder für Menge, Preis und Kategorie (selectedCategory) ausgelesen. Jeder Artikel erhält eine eindeutige ID via Date.now().toString(). Nach dem Hinzufügen zum Array wird das Feld geleert, um sofort für die nächste Suche bereit zu sein.
 
 ## Story 3 – Artikel entfernen
 
@@ -57,11 +57,11 @@ Ein neuer Artikel wird als Objekt vom Typ ListItem erstellt. Hierbei werden auch
 
 Das gesamte System besteht aus drei Docker-Services, definiert in `docker-compose.yml`:
 
-| Service    | Basis-Image               | Port         | Aufgabe                        |
-| ---------- | ------------------------- | ------------ | ------------------------------ |
-| `frontend` | node:20-alpine → nginx    | `$FRONTEND_PORT:80` | Vite-Build + nginx-Auslieferung |
-| `backend`  | eclipse-temurin:21-jdk → 21-jre | `$BACKEND_PORT:8080` | Spring Boot REST API |
-| `db`       | couchdb:latest            | `5984:5984`  | CouchDB-Datenbank              |
+| Service    | Basis-Image                     | Port                 | Aufgabe                         |
+| ---------- | ------------------------------- | -------------------- | ------------------------------- |
+| `frontend` | node:20-alpine → nginx          | `$FRONTEND_PORT:80`  | Vite-Build + nginx-Auslieferung |
+| `backend`  | eclipse-temurin:21-jdk → 21-jre | `$BACKEND_PORT:8080` | Spring Boot REST API            |
+| `db`       | couchdb:latest                  | `5984:5984`          | CouchDB-Datenbank               |
 
 **Frontend-Dockerfile** (multi-stage): Node 20 Alpine baut die Vite-App (`yarn build`) mit den Build-Args `VITE_COUCHDB_URL` und `VITE_PEPPER`. Das fertige `dist/`-Verzeichnis wird in ein nginx-Alpine-Image kopiert.
 
@@ -224,13 +224,13 @@ Wenn Anna den 2-Wege-Konflikt (`3-clara` vs `3-anna`) auflöst und erst danach B
 
 ### Zusammenfassung der Regeln
 
-| Situation                                                | Verhalten                                                                        |
-| -------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| 2 Versionen in `_conflicts`                              | Dialog zeigt 2 Karten nebeneinander, Nutzer wählt eine                           |
-| 3+ Versionen in `_conflicts`                             | Dialog zeigt 3+ Karten (Dialog breiter), Nutzer wählt eine                       |
-| Konflikt bereits gelöst, anderer Nutzer klickt           | Zeigt alle Versionen read-only, gewählte grün hervorgehoben, nur OK möglich      |
-| Nutzer mag das Ergebnis nicht                            | Muss Artikel manuell ändern – kein erneuter Konfliktdialog                       |
-| Alle Versionen inhaltlich identisch                      | Wird ohne Dialog im Hintergrund aufgelöst                                        |
+| Situation                                      | Verhalten                                                                   |
+| ---------------------------------------------- | --------------------------------------------------------------------------- |
+| 2 Versionen in `_conflicts`                    | Dialog zeigt 2 Karten nebeneinander, Nutzer wählt eine                      |
+| 3+ Versionen in `_conflicts`                   | Dialog zeigt 3+ Karten (Dialog breiter), Nutzer wählt eine                  |
+| Konflikt bereits gelöst, anderer Nutzer klickt | Zeigt alle Versionen read-only, gewählte grün hervorgehoben, nur OK möglich |
+| Nutzer mag das Ergebnis nicht                  | Muss Artikel manuell ändern – kein erneuter Konfliktdialog                  |
+| Alle Versionen inhaltlich identisch            | Wird ohne Dialog im Hintergrund aufgelöst                                   |
 
 ## Story 9 – Artikel in Kategorien einteilen
 
@@ -258,7 +258,13 @@ Der Report liegt unter `docs/technical-report.md` und dokumentiert die Technolog
 
 > Als Product Owner möchte ich eine übersichtliche Dokumentation und Issue verwaltung sicherstellen, um den Erfolg des Projekts zu garantieren.
 
-Zur Überwachung und Übersicht wurde ein Kanban Board in Github erstellt. Dort gibt es die Lanes ToDo, In Progress, Test, Review, Done.
+Zur Überwachung und Übersicht wurde ein Kanban Board in Github erstellt. Dort gibt es die Lanes ToDo, In Progress, Test, Review, Done. Die Stories können nur von mir (PO) oder TA (Maurer) abgenommen werden. Die möglichkeit in den main-branch zu mergen haben auch nur PO und TA. 
+
+Jedes Teammitglied hat 25 Storypoints. Es gibt 11 MH, 7 SH und 4 N2H. 
+
+Zur Kooridnation des Teams wurde eine Whatsappgruppe eingerichtet und dort wird regelmäßig der aktuelle Stand abgefragt und neue Aufgaben zu gewissen Terminen verteilt. 
+
+Wöchentlch gibt es Meetings mit dem Kunden.
 
 ## Story 12 – Einladungscode generieren
 
@@ -342,10 +348,10 @@ Die Authentifizierung ist vollständig im Frontend implementiert (`src/utils/aut
 
 **API:**
 
-| Funktion | Beschreibung |
-|---|---|
-| `register(username, password)` | Legt neuen Account an, setzt Cookie |
-| `login(username, password)` | Prüft Hash-Übereinstimmung, setzt Cookie |
-| `logout()` | Löscht Cookie, setzt `currentUser` auf `null` |
+| Funktion                       | Beschreibung                                  |
+| ------------------------------ | --------------------------------------------- |
+| `register(username, password)` | Legt neuen Account an, setzt Cookie           |
+| `login(username, password)`    | Prüft Hash-Übereinstimmung, setzt Cookie      |
+| `logout()`                     | Löscht Cookie, setzt `currentUser` auf `null` |
 
 Jede neu erstellte Liste wird dem eingeloggten User zugeordnet (`recordListForUser`), sodass die Startseite nur die eigenen Listen anzeigt.
