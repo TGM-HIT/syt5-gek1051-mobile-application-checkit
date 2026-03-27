@@ -85,11 +85,11 @@ Folgendes Szenario zeigt, wie die Konfliktbehandlung in der Praxis abläuft.
 
 Anna und Ben verlieren die Internetverbindung. Clara bleibt online.
 
-| Person | Status    | Lokale Revision |
-|--------|-----------|-----------------|
-| Anna   | offline   | `2-abc`         |
-| Ben    | offline   | `2-abc`         |
-| Clara  | online    | `2-abc`         |
+| Person | Status  | Lokale Revision |
+| ------ | ------- | --------------- |
+| Anna   | offline | `2-abc`         |
+| Ben    | offline | `2-abc`         |
+| Clara  | online  | `2-abc`         |
 
 ---
 
@@ -106,6 +106,7 @@ Anna und Ben verlieren die Internetverbindung. Clara bleibt online.
 Anna geht wieder online. PouchDB versucht ihre Revision `3-anna` (Eltern-Revision: `2-abc`) zu CouchDB zu pushen. Aber CouchDB ist bereits bei `3-xyz` (Claras Version). Die Eltern-Revision stimmt nicht überein → **Konflikt**.
 
 CouchDB speichert beide Versionen intern:
+
 ```
 2-abc
 ├── 3-xyz   ← gewinnt (Claras Version – deterministisch anhand des Revisions-Hashes)
@@ -116,12 +117,13 @@ Die App erkennt `_conflicts: ["3-anna"]` und zeigt Anna (und Clara, sobald ihr C
 
 **Anna klickt auf das Symbol.** Der Dialog zeigt die beiden Versionen nebeneinander:
 
-| Version A (gewinnend – Clara)      | Version B (Konflikt – Anna)         |
-|------------------------------------|-------------------------------------|
-| Milch: ✅ erledigt                 | Milch: ❌ nicht erledigt            |
-| (kein Brot)                        | Brot: ❌ nicht erledigt             |
+| Version A (gewinnend – Clara) | Version B (Konflikt – Anna) |
+| ----------------------------- | --------------------------- |
+| Milch: ✅ erledigt             | Milch: ❌ nicht erledigt     |
+| (kein Brot)                   | Brot: ❌ nicht erledigt      |
 
 Anna wählt für „Milch" Version A (erledigt) und behält „Brot" aus ihrer eigenen Version. Sie klickt **Übernehmen**. Die App:
+
 1. Löscht die Konfliktrevision `3-anna` aus CouchDB.
 2. Speichert das zusammengeführte Dokument als neue Revision `4-merged` mit dem Metadatenfeld `conflictResolution: { resolvedBy: "anna", resolvedAt: "..." }`.
 
@@ -146,10 +148,10 @@ Alle drei (Anna, Ben, Clara) sehen das ⚠ Symbol.
 
 **Wer auch immer zuerst klickt, entscheidet.** Angenommen Ben klickt als Erster. Der Dialog zeigt:
 
-| Version A (gewinnend – merged)     | Version B (Konflikt – Ben)          |
-|------------------------------------|-------------------------------------|
-| Milch: ✅ erledigt                 | Milch: ✅ erledigt                  |
-| Brot: ❌ nicht erledigt            | (kein Brot)                         |
+| Version A (gewinnend – merged) | Version B (Konflikt – Ben) |
+| ------------------------------ | -------------------------- |
+| Milch: ✅ erledigt              | Milch: ✅ erledigt          |
+| Brot: ❌ nicht erledigt         | (kein Brot)                |
 
 „Milch" ist in beiden Versionen gleich → nur für „Brot" muss Ben entscheiden. Er wählt Version A (Brot bleibt) und klickt **Übernehmen**. Das neue Dokument `5-merged2` wird mit `conflictResolution: { resolvedBy: "ben", ... }` gespeichert.
 
@@ -163,12 +165,12 @@ Beide klicken **OK**. Wenn Anna oder Clara mit Bens Entscheidung nicht einversta
 
 ### Zusammenfassung der Regeln
 
-| Situation | Verhalten |
-|-----------|-----------|
-| Konflikt offen, Nutzer klickt zuerst | Zeigt Versions-Vergleich, Nutzer wählt pro Artikel die gewünschte Version |
-| Konflikt bereits gelöst, anderer Nutzer klickt | Zeigt „bereits gelöst von [Name]", nur OK möglich |
-| Nutzer mag das Ergebnis nicht | Muss Artikel manuell ändern – kein erneuter Konfliktdialog |
-| Konflikt automatisch lösbar (beide Versionen identisch) | Wird ohne Dialog im Hintergrund aufgelöst |
+| Situation                                               | Verhalten                                                                 |
+| ------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Konflikt offen, Nutzer klickt zuerst                    | Zeigt Versions-Vergleich, Nutzer wählt pro Artikel die gewünschte Version |
+| Konflikt bereits gelöst, anderer Nutzer klickt          | Zeigt „bereits gelöst von [Name]", nur OK möglich                         |
+| Nutzer mag das Ergebnis nicht                           | Muss Artikel manuell ändern – kein erneuter Konfliktdialog                |
+| Konflikt automatisch lösbar (beide Versionen identisch) | Wird ohne Dialog im Hintergrund aufgelöst                                 |
 
 ## Story 9 – Artikel in Kategorien einteilen
 

@@ -8,6 +8,12 @@ export interface ListItem {
     done: boolean;
     category: string;
     syncError?: boolean;
+    updatedAt?: string;
+}
+
+export interface ConflictResolution {
+    resolvedBy: string;
+    resolvedAt: string;
 }
 
 export interface ListMeta {
@@ -15,6 +21,8 @@ export interface ListMeta {
     _rev?: string;
     name: string;
     items?: ListItem[];
+    conflictResolution?: ConflictResolution;
+    savedAt?: string;
 }
 
 export interface GlobalStats {

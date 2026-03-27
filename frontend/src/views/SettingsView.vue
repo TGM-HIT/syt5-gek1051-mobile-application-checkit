@@ -37,14 +37,10 @@
               <template v-slot:prepend>
                 <div class="text-h5 mr-4">🧹</div>
               </template>
-              <v-list-item-title class="font-weight-bold">App-Daten</v-list-item-title>
-              <v-list-item-subtitle>Lokale Liste und Cache löschen</v-list-item-subtitle>
+              <v-list-item-title class="font-weight-bold">Lokale Daten löschen</v-list-item-title>
+              <v-list-item-subtitle>Löscht den lokalen PouchDB-Cache (Remote bleibt erhalten)</v-list-item-subtitle>
               <template v-slot:append>
-                <v-btn
-                    color="error"
-                    variant="tonal"
-                    @click="clearCache"
-                >
+                <v-btn color="warning" variant="tonal" :loading="clearing" @click="clearLocalData">
                   Leeren
                 </v-btn>
               </template>
@@ -59,8 +55,8 @@
       </v-col>
     </v-row>
 
-    <v-snackbar v-model="snackbar" timeout="2000" color="grey-darken-3">
-      Cache wurde geleert
+    <v-snackbar v-model="snackbar" :color="snackbarColor" timeout="3000">
+      {{ snackbarText }}
     </v-snackbar>
   </v-container>
 </template>
@@ -68,17 +64,35 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useTheme } from 'vuetify';
+import { listDb } from '@/utils/listHash';
 
-const theme = useTheme();
-const isDark = ref(theme.global.name.value === 'dark');
-const snackbar = ref(false);
+const theme   = useTheme();
+const isDark  = ref(theme.global.name.value === 'dark');
+const snackbar      = ref(false);
+const snackbarText  = ref('');
+const snackbarColor = ref<'success' | 'error'>('success');
+const clearing = ref(false);
 
 const toggleTheme = () => {
   theme.global.name.value = isDark.value ? 'dark' : 'light';
 };
 
-const clearCache = () => {
-  // Simulierter Cache-Clear
-  snackbar.value = true;
+const clearLocalData = async () => {
+  clearing.value = true;
+  try {
+    // Destroy and recreate local PouchDB — remote CouchDB is untouched.
+    // The next sync will pull data back from the server.
+    await listDb.destroy();
+    snackbarText.value  = 'Lokaler Cache wurde geleert. Seite neu laden…';
+    snackbarColor.value = 'success';
+    snackbar.value = true;
+    setTimeout(() => window.location.reload(), 1500);
+  } catch {
+    snackbarText.value  = 'Fehler beim Löschen des Caches.';
+    snackbarColor.value = 'error';
+    snackbar.value = true;
+  } finally {
+    clearing.value = false;
+  }
 };
 </script>

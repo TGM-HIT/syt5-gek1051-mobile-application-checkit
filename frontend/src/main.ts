@@ -7,6 +7,7 @@ import ListView     from './views/ListView.vue'
 import SettingsView from './views/SettingsView.vue'
 import LoginView    from './views/LoginView.vue'
 import RegisterView from './views/RegisterView.vue'
+import DebugView    from './views/DebugView.vue'
 
 import "@fontsource/inter"
 import "@fontsource/inter/700.css"
@@ -28,6 +29,7 @@ const routes: Array<RouteRecordRaw> = [
   { path: '/settings',  name: 'Settings', component: SettingsView },
   { path: '/login',     name: 'Login',    component: LoginView },
   { path: '/register',  name: 'Register', component: RegisterView },
+  { path: '/debug',     name: 'Debug',    component: DebugView },
 ]
 
 const router = createRouter({
