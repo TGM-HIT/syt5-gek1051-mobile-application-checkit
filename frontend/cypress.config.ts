@@ -4,7 +4,7 @@ export default defineConfig({
   e2e: {
     specPattern: 'cypress/e2e/**/*.{cy,spec}.{js,jsx,ts,tsx}',
     // Docker: http://localhost:8080 | Vite Dev Server: http://localhost:5173
-    baseUrl: 'http://localhost:8080',
+    baseUrl: 'http://localhost:5173',
   },
   component: {
     specPattern: 'src/**/__tests__/*.{cy,spec}.{js,ts,jsx,tsx}',

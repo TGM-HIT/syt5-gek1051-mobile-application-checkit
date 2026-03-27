@@ -4,7 +4,7 @@
       <v-col cols="12" md="10" lg="8">
         <v-card elevation="3" class="pa-2 pa-sm-4">
 
-          <!-- Header: list name + username + actions -->
+          <!-- Header: list name + actions -->
           <div class="d-flex align-center mb-2">
             <div class="flex-grow-1 min-width-0">
               <h1 class="text-h5 text-sm-h4 font-weight-bold text-truncate">
@@ -15,29 +15,28 @@
               </div>
             </div>
 
-            <!-- CouchDB sync status (debug only) -->
-            <v-chip
-                v-if="debugMode"
-                :color="syncColor"
-                variant="tonal"
-                size="x-small"
-                class="mr-2"
-                :title="'CouchDB: ' + couchDbStatus"
-            >
-              {{ syncLabel }}
-            </v-chip>
-
-            <!-- Debug: offline toggle -->
+            <!-- Conflict warning icon -->
             <v-btn
-                v-if="debugMode"
-                :color="simulatedOffline ? 'error' : 'success'"
+                v-if="hasConflict"
+                icon="mdi-alert"
+                color="warning"
                 variant="tonal"
                 size="small"
                 class="mr-2"
+                title="Synchronisierungskonflikt – klicken zum Lösen"
+                @click="openConflictDialog"
+            />
+
+            <!-- Debug toggle (only when ?debug=true) -->
+            <v-btn
+                v-if="debugMode"
+                :color="effectivelyOffline ? 'error' : 'success'"
+                variant="tonal"
+                size="small"
+                class="mr-1"
                 @click="toggleOffline"
             >
-              <v-icon start>{{ simulatedOffline ? 'mdi-wifi-off' : 'mdi-wifi' }}</v-icon>
-              {{ simulatedOffline ? 'Offline' : 'Online' }}
+              {{ effectivelyOffline ? 'Offline' : 'Online' }}
             </v-btn>
 
             <!-- Share -->
@@ -45,11 +44,6 @@
             <!-- Settings -->
             <v-btn to="/settings" variant="text" icon="mdi-cog" color="grey-darken-2" />
           </div>
-
-          <v-chip color="grey-darken-1" variant="outlined" size="small" class="mb-4">
-            <v-icon start>mdi-earth</v-icon>
-            {{ totalListsCreated }} Liste{{ totalListsCreated === 1 ? '' : 'n' }} insgesamt erstellt
-          </v-chip>
 
           <!-- Offline banner -->
           <v-alert
@@ -64,9 +58,7 @@
             <span v-if="pendingCount > 0">
               {{ pendingCount }} Änderung{{ pendingCount === 1 ? '' : 'en' }} wird synchronisiert, sobald du wieder online bist.
             </span>
-            <span v-else>
-              Neue Änderungen werden lokal gespeichert.
-            </span>
+            <span v-else>Neue Änderungen werden lokal gespeichert.</span>
           </v-alert>
 
           <!-- Add item form -->
@@ -287,51 +279,165 @@
       </v-card>
     </v-dialog>
 
+    <!-- Conflict dialog -->
+    <v-dialog v-model="conflictDialog" :max-width="conflictDialogWidth" persistent>
+      <v-card>
+        <v-card-title class="d-flex align-center pa-4">
+          <v-icon color="warning" class="mr-2">mdi-alert</v-icon>
+          Synchronisierungskonflikt
+        </v-card-title>
+
+        <!-- Already resolved by someone else: show all versions read-only -->
+        <template v-if="conflictAlreadyResolved">
+          <v-card-text>
+            <v-alert type="success" variant="tonal" class="mb-4">
+              Dieser Konflikt wurde bereits von
+              <strong>{{ conflictResolutionInfo?.resolvedBy }}</strong> gelöst
+              ({{ formatTime(conflictResolutionInfo?.resolvedAt) }}).
+            </v-alert>
+
+            <v-row v-if="conflictResolutionInfo?.versions?.length">
+              <v-col
+                  v-for="(v, i) in conflictResolutionInfo.versions"
+                  :key="i"
+                  :cols="Math.floor(12 / conflictResolutionInfo.versions.length)"
+                  class="d-flex flex-column"
+              >
+                <v-card
+                    :variant="v.chosen ? 'elevated' : 'outlined'"
+                    :color="v.chosen ? 'success' : undefined"
+                    class="flex-grow-1 d-flex flex-column"
+                >
+                  <v-card-title class="text-subtitle-2 pb-0">
+                    {{ v.label }}
+                    <v-icon v-if="v.chosen" size="small" class="ml-1">mdi-check-circle</v-icon>
+                  </v-card-title>
+                  <v-card-subtitle v-if="v.savedAt" class="text-caption">
+                    {{ formatTime(v.savedAt) }}
+                  </v-card-subtitle>
+                  <v-card-text class="flex-grow-1 pt-2">
+                    <div
+                        v-for="item in v.items"
+                        :key="String(item.id)"
+                        class="d-flex align-center mb-1"
+                    >
+                      <v-icon :color="item.done ? 'success' : 'grey'" size="small" class="mr-1">
+                        {{ item.done ? 'mdi-check-circle' : 'mdi-circle-outline' }}
+                      </v-icon>
+                      <span class="text-body-2">{{ item.name }}</span>
+                      <span class="text-caption text-grey ml-1">({{ item.menge }})</span>
+                    </div>
+                    <div v-if="v.items.length === 0" class="text-caption text-grey font-italic">
+                      Keine Artikel
+                    </div>
+                  </v-card-text>
+                </v-card>
+              </v-col>
+            </v-row>
+          </v-card-text>
+          <v-card-actions>
+            <v-spacer></v-spacer>
+            <v-btn color="primary" variant="elevated" @click="acknowledgeConflict">OK</v-btn>
+          </v-card-actions>
+        </template>
+
+        <!-- Conflict picker: choose one version (supports 2, 3 or more) -->
+        <template v-else>
+          <v-card-text>
+            <p class="text-body-2 text-grey mb-4">
+              Während du offline warst wurden gleichzeitig Änderungen gemacht. Welche Version soll übernommen werden?
+            </p>
+
+            <v-row>
+              <v-col
+                  v-for="(v, i) in conflictVersions"
+                  :key="i"
+                  :cols="Math.floor(12 / conflictVersions.length)"
+                  class="d-flex flex-column"
+              >
+                <v-card variant="outlined" class="flex-grow-1 d-flex flex-column">
+                  <v-card-title class="text-subtitle-2 pb-0">{{ v.label }}</v-card-title>
+                  <v-card-subtitle v-if="v.savedAt" class="text-caption">
+                    {{ formatTime(v.savedAt) }}
+                  </v-card-subtitle>
+                  <v-card-text class="flex-grow-1 pt-2">
+                    <div
+                        v-for="item in v.items"
+                        :key="String(item.id)"
+                        class="d-flex align-center mb-1"
+                    >
+                      <v-icon :color="item.done ? 'success' : 'grey'" size="small" class="mr-1">
+                        {{ item.done ? 'mdi-check-circle' : 'mdi-circle-outline' }}
+                      </v-icon>
+                      <span class="text-body-2">{{ item.name }}</span>
+                      <span class="text-caption text-grey ml-1">({{ item.menge }})</span>
+                    </div>
+                    <div v-if="v.items.length === 0" class="text-caption text-grey font-italic">
+                      Keine Artikel
+                    </div>
+                  </v-card-text>
+                  <v-card-actions>
+                    <v-btn color="primary" variant="elevated" block @click="applyConflictResolution(i)">
+                      Diese Version wählen
+                    </v-btn>
+                  </v-card-actions>
+                </v-card>
+              </v-col>
+            </v-row>
+          </v-card-text>
+          <v-card-actions>
+            <v-spacer></v-spacer>
+            <v-btn color="grey-darken-1" variant="text" @click="conflictDialog = false">Abbrechen</v-btn>
+          </v-card-actions>
+        </template>
+      </v-card>
+    </v-dialog>
+
   </v-container>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { getListsCreated, couchDbStatus, simulatedOffline, toggleOffline, listDb, lastSyncErrorMessage, isOffline, createInviteCode, formatInviteCode } from '@/utils/listHash';
-import type { ListItem, ListMeta } from '@/utils/types';
+import { simulatedOffline, isOffline, lastSyncErrorMessage, listDb, createInviteCode, formatInviteCode, toggleOffline } from '@/utils/listHash';
+import type { ListItem, ListMeta, ConflictResolution, ConflictVersionSnapshot } from '@/utils/types';
 import { currentUser } from '@/utils/auth';
 import PriceTagScanDialog from '@/components/PriceTagScanDialog.vue';
 
-
-
 const route = useRoute();
 
-const listHash = computed(() => route.params.hash as string ?? '');
-const debugMode = computed(() => route.query.debug === 'true');
+const listHash        = computed(() => route.params.hash as string ?? '');
 const currentListName = ref<string>('Einkaufsliste');
-const totalListsCreated = ref(0);
 
 /** True when the user has no network connection (real or simulated). */
-const effectivelyOffline = computed(() => isOffline.value || simulatedOffline.value);
+const effectivelyOffline = computed(() => simulatedOffline.value || isOffline.value);
+
+/** Show inline debug toggle when ?debug=true is in the URL (used by e2e tests). */
+const debugMode = computed(() => route.query.debug === 'true');
 
 const PRODUCT_CATEGORIES = [
-  { id: 'Obst & Gemüse', label: 'Obst & Gemüse', icon: 'mdi-carrot' },
-  { id: 'Milchprodukte',   label: 'Milchprodukte', icon: 'mdi-cheese' },
-  { id: 'Backwaren',  label: 'Backwaren',      icon: 'mdi-bread-slice' },
-  { id: 'Fleisch/Fisch',    label: 'Fleisch/Fisch',  icon: 'mdi-food-steak' },
-  { id: 'Tiefkühl',  label: 'Tiefkühl',       icon: 'mdi-snowflake' },
-  { id: 'Drogerie', label: 'Drogerie',     icon: 'mdi-lipstick' },
-  { id: 'Haushalt', label: 'Haushalt',     icon: 'mdi-spray-bottle' },
-  { id: 'Sonstiges',   label: 'Sonstiges',      icon: 'mdi-package-variant' }
+  { id: 'Obst & Gemüse',  label: 'Obst & Gemüse', icon: 'mdi-carrot' },
+  { id: 'Milchprodukte',  label: 'Milchprodukte',  icon: 'mdi-cheese' },
+  { id: 'Backwaren',      label: 'Backwaren',       icon: 'mdi-bread-slice' },
+  { id: 'Fleisch/Fisch',  label: 'Fleisch/Fisch',   icon: 'mdi-food-steak' },
+  { id: 'Tiefkühl',       label: 'Tiefkühl',        icon: 'mdi-snowflake' },
+  { id: 'Drogerie',       label: 'Drogerie',        icon: 'mdi-lipstick' },
+  { id: 'Haushalt',       label: 'Haushalt',        icon: 'mdi-spray-bottle' },
+  { id: 'Sonstiges',      label: 'Sonstiges',       icon: 'mdi-package-variant' },
 ];
 
 const selectedCategory = ref('Sonstiges');
 
-let listDoc: ListMeta | null = null;
+let listDoc: (ListMeta & { _conflicts?: string[] }) | null = null;
 let changeListener: any = null;
 
-// ─── Pending sync tracking ────────────────────────────────────────────────────
-/** IDs of items changed while offline that haven't been confirmed synced yet. */
+// ── Pending sync tracking ──────────────────────────────────────────────────────
+
 const pendingItemIds = ref<string[]>([]);
 const pendingCount   = computed(() => pendingItemIds.value.length);
 
-// ─── Snackbar ─────────────────────────────────────────────────────────────────
+// ── Snackbar ──────────────────────────────────────────────────────────────────
+
 const snackbarVisible = ref(false);
 const snackbarText    = ref('');
 const snackbarColor   = ref<'error' | 'warning' | 'success'>('error');
@@ -342,23 +448,22 @@ const snackbarIcon    = computed(() => ({
 }[snackbarColor.value]));
 
 function showSnackbar(text: string, color: 'error' | 'warning' | 'success' = 'error') {
-  snackbarText.value  = text;
-  snackbarColor.value = color;
+  snackbarText.value    = text;
+  snackbarColor.value   = color;
   snackbarVisible.value = true;
 }
 
-// ─── Offline / online watcher ─────────────────────────────────────────────────
+// ── Offline / online watcher ───────────────────────────────────────────────────
+
 watch(effectivelyOffline, (offline) => {
   if (offline) {
     showSnackbar('Kein Internet – Änderungen werden lokal gespeichert.', 'warning');
   } else {
-    // Back online: PouchDB retries automatically; clear pending indicators
     pendingItemIds.value = [];
     showSnackbar('Wieder online – Synchronisierung läuft.', 'success');
   }
 });
 
-// Forward sync errors from listHash to the snackbar
 watch(lastSyncErrorMessage, (msg) => {
   if (msg) {
     showSnackbar(msg, 'error');
@@ -366,21 +471,75 @@ watch(lastSyncErrorMessage, (msg) => {
   }
 });
 
+// ── Conflict state ────────────────────────────────────────────────────────────
+
+// Tracks conflict resolutions acknowledged in this session so the resolver
+// doesn't see their own resolution as a foreign warning, and the other user
+// sees the warning exactly once until they click OK.
+const acknowledgedResolutionTimes = new Set<string>();
+
+function ackedStorageKey() {
+  return `checkit_acked_${listHash.value}`;
+}
+function persistAcked() {
+  localStorage.setItem(ackedStorageKey(), JSON.stringify([...acknowledgedResolutionTimes]));
+}
+
+interface ConflictVersion {
+  items:   ListItem[];
+  label:   string;
+  savedAt: string | null;
+  savedBy: string | null;
+}
+
+const hasConflict             = ref(false);
+const conflictDialog          = ref(false);
+const conflictAlreadyResolved = ref(false);
+const conflictResolutionInfo  = ref<ConflictResolution | null>(null);
+const conflictVersions        = ref<ConflictVersion[]>([]);
+
+// dialog width scales with number of versions shown
+const conflictDialogWidth = computed(() =>
+  Math.max(conflictVersions.value.length, conflictResolutionInfo.value?.versions?.length ?? 0) >= 3
+    ? '960' : '640'
+);
+
+let pendingConflictRevs: string[] = [];
+let pendingWinningDoc: (ListMeta & { _conflicts?: string[] }) | null = null;
+
+// ── Lifecycle ─────────────────────────────────────────────────────────────────
+
 onMounted(async () => {
-  totalListsCreated.value = await getListsCreated();
+  try {
+    const stored = localStorage.getItem(ackedStorageKey());
+    if (stored) JSON.parse(stored).forEach((t: string) => acknowledgedResolutionTimes.add(t));
+  } catch { /* ignore */ }
+
   await fetchItems();
 
-  // Listen for realtime updates (local + synced from remote)
   changeListener = listDb.changes({
     since: 'now',
     live: true,
     include_docs: true,
-    doc_ids: [listHash.value]
-  }).on('change', (change) => {
-    if (change.id === listHash.value && change.doc) {
-      listDoc = change.doc as ListMeta;
-      currentListName.value = listDoc.name;
-      shoppingList.value = listDoc.items || [];
+    conflicts: true,
+    doc_ids: [listHash.value],
+  }).on('change', (change: any) => {
+    if (change.id !== listHash.value || !change.doc) return;
+    const doc = change.doc as ListMeta & { _conflicts?: string[] };
+
+    listDoc = doc;
+    currentListName.value = doc.name;
+    shoppingList.value = doc.items || [];
+
+    if (doc._conflicts && doc._conflicts.length > 0) {
+      hasConflict.value = true;
+    } else if (
+      doc.conflictResolution &&
+      !acknowledgedResolutionTimes.has(doc.conflictResolution.resolvedAt)
+    ) {
+      hasConflict.value = true;
+    } else {
+      hasConflict.value = false;
     }
   });
 });
@@ -389,21 +548,7 @@ onUnmounted(() => {
   if (changeListener) changeListener.cancel();
 });
 
-const syncLabel = computed(() => ({
-  connecting: 'DB connecting',
-  active:     'DB active',
-  paused:     'DB paused',
-  error:      'DB error',
-  disabled:   'DB disabled',
-}[couchDbStatus.value]));
-
-const syncColor = computed(() => ({
-  connecting: 'grey',
-  active:     'success',
-  paused:     'warning',
-  error:      'error',
-  disabled:   'grey',
-}[couchDbStatus.value]));
+// ── List state ────────────────────────────────────────────────────────────────
 
 const searchQuery  = ref('');
 const newItemMenge = ref('');
@@ -413,8 +558,8 @@ const editDialog   = ref(false);
 const scanDialog   = ref(false);
 const inviteDialog  = ref(false);
 const inviteCode    = ref('');
-const selectedId   = ref<any>(null);
-const editModel = ref<ListItem>({ id: '', name: '', menge: '', done: false, category: 'other' });
+const selectedId   = ref<string>('');
+const editModel    = ref<ListItem>({ id: '', name: '', menge: '', done: false, category: 'Sonstiges' });
 
 /** Filtered list for mobile view (respects search query). */
 const filteredList = computed(() => {
@@ -424,18 +569,30 @@ const filteredList = computed(() => {
 });
 
 const headers = [
-  { title: 'Done',    key: 'done',    align: 'start' as const, sortable: false, width: '50px' },
-  { title: 'Artikel', key: 'name',    align: 'start' as const, sortable: true },
-  { title: 'Menge',   key: 'menge',   align: 'start' as const, sortable: true },
-  { title: 'Preis',   key: 'preis',   align: 'start' as const, sortable: true },
-  { title: 'Aktionen',key: 'actions', align: 'end'   as const, sortable: false },
+  { title: 'Done',     key: 'done',    align: 'start' as const, sortable: false, width: '50px' },
+  { title: 'Artikel',  key: 'name',    align: 'start' as const, sortable: true },
+  { title: 'Menge',    key: 'menge',   align: 'start' as const, sortable: true },
+  { title: 'Preis',    key: 'preis',   align: 'start' as const, sortable: true },
+  { title: 'Aktionen', key: 'actions', align: 'end'   as const, sortable: false },
 ];
+
+// ── DB operations ─────────────────────────────────────────────────────────────
 
 const fetchItems = async () => {
   try {
-    listDoc = await listDb.get<ListMeta>(listHash.value);
-    currentListName.value = listDoc.name;
-    shoppingList.value = listDoc.items || [];
+    const doc = await (listDb as any).get(listHash.value, { conflicts: true }) as ListMeta & { _conflicts?: string[] };
+    listDoc = doc;
+    currentListName.value = doc.name;
+    shoppingList.value = doc.items || [];
+
+    if (doc._conflicts && doc._conflicts.length > 0) {
+      hasConflict.value = true;
+    } else if (
+      doc.conflictResolution &&
+      !acknowledgedResolutionTimes.has(doc.conflictResolution.resolvedAt)
+    ) {
+      hasConflict.value = true;
+    }
   } catch (err: any) {
     if (err.status !== 404) console.warn('[fetchItems]', err);
   }
@@ -443,58 +600,174 @@ const fetchItems = async () => {
 
 const saveItemsToDb = async (changedItemId?: string) => {
   if (!listDoc) return;
-  listDoc.items = [...shoppingList.value];
+  listDoc.items   = [...shoppingList.value];
+  listDoc.savedAt = new Date().toISOString();
+  listDoc.savedBy = currentUser.value || 'Unbekannt';
   try {
     const response = await listDb.put(listDoc);
     listDoc._rev = response.rev;
     if (changedItemId) {
       const idx = shoppingList.value.findIndex(i => i.id === changedItemId);
-      if (idx !== -1) {
-        shoppingList.value[idx] = { ...shoppingList.value[idx], syncError: false } as ListItem;
-      }
-      // Mark as pending if we're offline
-      if (effectivelyOffline.value) {
-        if (!pendingItemIds.value.includes(changedItemId)) {
-          pendingItemIds.value = [...pendingItemIds.value, changedItemId];
-        }
+      if (idx !== -1) shoppingList.value[idx]!.syncError = false;
+      // Track pending if offline
+      if (effectivelyOffline.value && !pendingItemIds.value.includes(changedItemId)) {
+        pendingItemIds.value = [...pendingItemIds.value, changedItemId];
       }
     }
   } catch (err) {
     console.warn('Save failed:', err);
     if (changedItemId) {
       const idx = shoppingList.value.findIndex(i => i.id === changedItemId);
-      if (idx !== -1) shoppingList.value[idx] = { ...shoppingList.value[idx], syncError: true } as ListItem;
+      if (idx !== -1) shoppingList.value[idx]!.syncError = true;
     }
     showSnackbar('Speichern fehlgeschlagen. Bitte Verbindung prüfen.', 'error');
     await fetchItems();
   }
 };
 
+// ── Conflict resolution ───────────────────────────────────────────────────────
+
+const openConflictDialog = async () => {
+  const doc = await (listDb as any).get(listHash.value, { conflicts: true }) as ListMeta & { _conflicts?: string[] };
+
+  // No active CouchDB conflicts — check if already resolved
+  if (!doc._conflicts || doc._conflicts.length === 0) {
+    if (doc.conflictResolution) {
+      conflictAlreadyResolved.value = true;
+      conflictResolutionInfo.value  = doc.conflictResolution;
+      conflictVersions.value        = [];
+    } else {
+      hasConflict.value = false;
+      return;
+    }
+    conflictDialog.value = true;
+    return;
+  }
+
+  // Load all conflict revisions alongside the winning doc
+  const allDocs: (ListMeta & { _conflicts?: string[] })[] = [doc];
+  for (const rev of doc._conflicts) {
+    const d = await (listDb as any).get(listHash.value, { rev }) as ListMeta;
+    allDocs.push(d);
+  }
+
+  // If all versions are content-identical, silently delete losing revisions
+  const firstItems = JSON.stringify(doc.items ?? []);
+  if (allDocs.every(d => JSON.stringify(d.items ?? []) === firstItems)) {
+    for (const rev of doc._conflicts) {
+      try { await (listDb as any).remove(listHash.value, rev); } catch { /* ignore */ }
+    }
+    hasConflict.value = false;
+    return;
+  }
+
+  const user = currentUser.value || '';
+  const versions: ConflictVersion[] = allDocs.map((d, i) => {
+    let label: string;
+    if (d.savedBy === user) {
+      label = 'Deine Version';
+    } else if (d.savedBy) {
+      label = `Version von ${d.savedBy}`;
+    } else {
+      label = `Version ${String.fromCharCode(65 + i)}`; // A, B, C …
+    }
+    return { items: d.items ?? [], label, savedAt: d.savedAt ?? null, savedBy: d.savedBy ?? null };
+  });
+
+  pendingConflictRevs           = doc._conflicts;
+  pendingWinningDoc             = doc;
+  conflictVersions.value        = versions;
+  conflictAlreadyResolved.value = false;
+  conflictDialog.value          = true;
+};
+
+const applyConflictResolution = async (index: number) => {
+  if (!pendingWinningDoc) return;
+
+  const chosen = conflictVersions.value[index];
+  if (!chosen) return;
+
+  const chosenItems = [...chosen.items];
+
+  // Store snapshots of all versions so the "already resolved" dialog can show them
+  const versionSnapshots: ConflictVersionSnapshot[] = conflictVersions.value.map((v, i) => ({
+    label:   v.label,
+    savedAt: v.savedAt ?? undefined,
+    savedBy: v.savedBy ?? undefined,
+    items:   v.items,
+    chosen:  i === index,
+  }));
+
+  // Delete all conflict revisions
+  for (const rev of pendingConflictRevs) {
+    try { await (listDb as any).remove(listHash.value, rev); }
+    catch (e) { console.warn('[conflict] failed to remove rev', rev, e); }
+  }
+
+  const resolvedAt  = new Date().toISOString();
+  const resolvedDoc: ListMeta & { _conflicts?: string[] } = {
+    ...pendingWinningDoc,
+    items: chosenItems,
+    conflictResolution: {
+      resolvedBy: currentUser.value || 'Unbekannt',
+      resolvedAt,
+      versions: versionSnapshots,
+    },
+  };
+  delete resolvedDoc._conflicts;
+
+  const response = await listDb.put(resolvedDoc);
+  listDoc = { ...resolvedDoc, _rev: response.rev };
+  shoppingList.value = chosenItems;
+
+  acknowledgedResolutionTimes.add(resolvedAt);
+  persistAcked();
+  hasConflict.value    = false;
+  conflictDialog.value = false;
+};
+
+const acknowledgeConflict = () => {
+  if (conflictResolutionInfo.value?.resolvedAt) {
+    acknowledgedResolutionTimes.add(conflictResolutionInfo.value.resolvedAt);
+    persistAcked();
+  }
+  hasConflict.value    = false;
+  conflictDialog.value = false;
+};
+
+const formatTime = (iso?: string | null): string => {
+  if (!iso) return '';
+  return new Date(iso).toLocaleString('de-AT');
+};
+
+// ── List operations ───────────────────────────────────────────────────────────
+
 const addItem = async () => {
   if (!searchQuery.value) return;
   const newItem: ListItem = {
-    id: Date.now().toString(),
-    name: searchQuery.value,
-    menge: newItemMenge.value || '1',
-    preis: newItemPreis.value || undefined,
-    done: false,
-    category: selectedCategory.value || 'Sonstiges'
+    id:        Date.now().toString(),
+    name:      searchQuery.value,
+    menge:     newItemMenge.value || '1',
+    preis:     newItemPreis.value || undefined,
+    done:      false,
+    category:  selectedCategory.value || 'Sonstiges',
+    updatedAt: new Date().toISOString(),
   };
   shoppingList.value.push(newItem);
-  searchQuery.value = '';
+  searchQuery.value  = '';
   newItemMenge.value = '';
   newItemPreis.value = '';
   await saveItemsToDb(newItem.id);
 };
 
 const onScanned = (data: { name: string; preis: string }) => {
-  searchQuery.value = data.name;
+  searchQuery.value  = data.name;
   newItemPreis.value = data.preis;
 };
 
 const generateInvite = () => {
   const raw = createInviteCode(listHash.value);
-  inviteCode.value = formatInviteCode(raw);
+  inviteCode.value  = formatInviteCode(raw);
   inviteDialog.value = true;
 };
 
@@ -522,12 +795,13 @@ const copyShareLink = async () => {
 };
 
 const toggleDone = async (item: ListItem) => {
+  item.updatedAt = new Date().toISOString();
   await saveItemsToDb(item.id);
 };
 
-const removeItem = async (id: string | number) => {
-  pendingItemIds.value = pendingItemIds.value.filter(p => p !== String(id));
-  shoppingList.value = shoppingList.value.filter(item => item.id !== id);
+const removeItem = async (id: string) => {
+  pendingItemIds.value = pendingItemIds.value.filter(p => p !== id);
+  shoppingList.value   = shoppingList.value.filter(item => item.id !== id);
   await saveItemsToDb();
 };
 
@@ -540,7 +814,9 @@ function openEditDialog(item: ListItem) {
 const saveEdit = async () => {
   editDialog.value = false;
   const index = shoppingList.value.findIndex(i => i.id === selectedId.value);
-  if (index !== -1) shoppingList.value[index] = { ...editModel.value };
+  if (index !== -1) {
+    shoppingList.value[index] = { ...editModel.value, updatedAt: new Date().toISOString() };
+  }
   await saveItemsToDb(selectedId.value);
 };
 </script>
@@ -576,5 +852,8 @@ input[type="checkbox"] {
   background: rgba(var(--v-theme-primary), 0.08);
   text-align: center;
   word-break: break-all;
+}
+.cursor-pointer {
+  cursor: pointer;
 }
 </style>
