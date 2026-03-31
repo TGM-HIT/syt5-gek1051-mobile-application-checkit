@@ -127,7 +127,7 @@
           <!-- Desktop: data table -->
           <v-data-table
               :headers="headers"
-              :items="shoppingList"
+              :items="listWithPreview"
               :search="searchQuery"
               class="elevation-0 d-none d-sm-block"
               hide-default-footer
@@ -147,7 +147,8 @@
               <span :class="{
                 'done-text':         item.done,
                 'sync-error-text':   item.syncError,
-                'sync-pending-text': !item.syncError && pendingItemIds.includes(String(item.id))
+                'sync-pending-text': !item.syncError && pendingItemIds.includes(String(item.id)),
+                'preview-text':      item.id === '__preview__'   // ← neu
               }">
                 {{ item.name }}
                 <v-icon v-if="item.syncError" color="error" size="small" title="Sync fehlgeschlagen">mdi-sync-alert</v-icon>
@@ -170,7 +171,7 @@
           <!-- Mobile: card list -->
           <div class="d-sm-none">
             <v-list v-if="shoppingList.length > 0" lines="two" class="pa-0">
-              <template v-for="(item, idx) in filteredList" :key="item.id">
+              <template v-for="(item, idx) in listWithPreview" :key="item.id">
                 <v-list-item :class="{ 'item-done': item.done }">
                   <template v-slot:prepend>
                     <input
@@ -403,6 +404,14 @@ import type { ListItem, ListMeta, ConflictResolution, ConflictVersionSnapshot } 
 import { currentUser } from '@/utils/auth';
 import PriceTagScanDialog from '@/components/PriceTagScanDialog.vue';
 
+function debounce<T extends (...args: any[]) => void>(fn: T, delay = 400): T {
+  let timer: ReturnType<typeof setTimeout>;
+  return ((...args: any[]) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), delay);
+  }) as T;
+}
+
 const route = useRoute();
 
 const listHash        = computed(() => route.params.hash as string ?? '');
@@ -559,6 +568,28 @@ const inviteDialog  = ref(false);
 const inviteCode    = ref('');
 const selectedId   = ref<string>('');
 const editModel    = ref<ListItem>({ id: '', name: '', menge: '', done: false, category: 'Sonstiges' });
+
+const previewItem = computed<ListItem | null>(() => {
+  if (!searchQuery.value.trim()) return null;
+  return {
+    id: '__preview__',
+    name: searchQuery.value,
+    menge: newItemMenge.value || '1',
+    preis: newItemPreis.value || undefined,
+    done: false,
+    category: selectedCategory.value || 'Sonstiges',
+  };
+});
+
+const listWithPreview = computed(() => {
+  if (!previewItem.value) return shoppingList.value;
+  return [...shoppingList.value, previewItem.value];
+});
+
+
+watch(editModel, () => {
+  if (editDialog.value) debouncedSaveEdit();
+}, { deep: true });
 
 /** Filtered list for mobile view (respects search query). */
 const filteredList = computed(() => {
@@ -815,15 +846,21 @@ function openEditDialog(item: ListItem) {
 
 const saveEdit = async () => {
   editDialog.value = false;
+  // Finales Save beim Schließen (falls debounce noch pending)
   const index = shoppingList.value.findIndex(i => i.id === selectedId.value);
   if (index !== -1) {
     shoppingList.value[index] = { ...editModel.value, updatedAt: new Date().toISOString() };
+    await saveItemsToDb(selectedId.value);
   }
-  await saveItemsToDb(selectedId.value);
 };
 </script>
 
 <style scoped>
+.preview-text {
+  color: grey !important;
+  font-style: italic;
+  opacity: 0.6;
+}
 .done-text {
   text-decoration: line-through !important;
   color: grey !important;
