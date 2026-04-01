@@ -6,6 +6,20 @@
 
 > Als Benutzer möchte ich eine Einkaufsliste anlegen können, um eine übersichtliche Liste meiner Einkaufsartikel zu sehen.
 
+- Identifikation: Jede Liste wird über einen Hash (ID) identifiziert, 
+der als URL-Parameter (/list/:hash) dient.
+
+- Lokal: PouchDB (listDb) speichert das Dokument mit der ID des Hashs.
+
+- Remote: Automatische Synchronisation mit CouchDB, 
+sobald eine Verbindung besteht.
+
+### Workflow
+- Datenabruf: listDb.get<ListMeta>(listHash.value) 
+lädt den Namen der Liste und die zugehörigen items.
+
+
+
 ## Story 2 – Artikel hinzufügen und suchen
 
 *HEAD: STEE | Prio: MH | SP: 5*
