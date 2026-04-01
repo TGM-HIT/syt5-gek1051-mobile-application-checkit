@@ -8,7 +8,7 @@
             <div class="flex-grow-1 min-width-0">
               <h1 class="text-h5 text-sm-h4 font-weight-bold text-truncate">
                 {{ currentListName }}
-                <v-chip v-if="!listDoc?.owner" size="small" color="secondary" variant="tonal" class="ml-2">Privat</v-chip>
+                <v-chip v-if="listOwner === undefined" size="small" color="secondary" variant="tonal" class="ml-2">Privat</v-chip>
               </h1>
               <div class="text-caption text-grey mt-1 hash-label">
                 /list/{{ listHash }}
@@ -37,7 +37,7 @@
               {{ effectivelyOffline ? 'Offline' : 'Online' }}
             </v-btn>
 
-            <v-btn v-if="listDoc?.owner" variant="text" icon="mdi-share-variant" color="primary" @click="generateInvite" />
+            <v-btn v-if="listOwner !== undefined" variant="text" icon="mdi-share-variant" color="primary" @click="generateInvite" />
             <v-btn to="/settings" variant="text" icon="mdi-cog" color="grey-darken-2" />
           </div>
 
@@ -418,14 +418,14 @@ const PRODUCT_CATEGORIES = [
 
 const selectedCategory = ref('Sonstiges');
 
-// 1. NEUES INTERFACE FÜR TYPESCRIPT
 interface ExtendedListMeta extends ListMeta {
   _conflicts?: string[];
   owner?: string;
 }
 
-// 2. DAS INTERFACE BEI DER DEKLARATION VERWENDEN
 let listDoc: ExtendedListMeta | null = null;
+// FIX: Wir nutzen eine reaktive Variable für den Owner, um TS im Template glücklich zu machen
+const listOwner = ref<string | undefined>(undefined);
 
 let changeListener: any = null;
 
@@ -510,11 +510,10 @@ onMounted(async () => {
   }).on('change', (change: any) => {
     if (change.id !== listHash.value || !change.doc) return;
 
-    // 3. DAS INTERFACE BEIM CASTEN VERWENDEN
     const doc = change.doc as ExtendedListMeta;
-
     listDoc = doc;
     currentListName.value = doc.name;
+    listOwner.value = doc.owner; // FIX: Owner zuweisen
     shoppingList.value = doc.items || [];
 
     if (doc._conflicts && doc._conflicts.length > 0) {
@@ -563,10 +562,10 @@ const headers = [
 
 const fetchItems = async () => {
   try {
-    // 4. DAS INTERFACE BEIM FETCHEN VERWENDEN
     const doc = await (listDb as any).get(listHash.value, { conflicts: true }) as ExtendedListMeta;
     listDoc = doc;
     currentListName.value = doc.name;
+    listOwner.value = doc.owner; // FIX: Owner zuweisen
     shoppingList.value = doc.items || [];
 
     if (doc._conflicts && doc._conflicts.length > 0) {
@@ -723,7 +722,6 @@ const formatTime = (iso?: string | null): string => {
 
 const addItem = async () => {
   if (!searchQuery.value) return;
-  // Ensure the document is loaded before adding (race-condition guard)
   if (!listDoc) await fetchItems();
   if (!listDoc) return;
   const newItem: ListItem = {
