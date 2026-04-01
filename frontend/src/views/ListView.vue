@@ -8,6 +8,7 @@
             <div class="flex-grow-1 min-width-0">
               <h1 class="text-h5 text-sm-h4 font-weight-bold text-truncate">
                 {{ currentListName }}
+                <v-chip v-if="!listDoc?.owner" size="small" color="secondary" variant="tonal" class="ml-2">Privat</v-chip>
               </h1>
               <div class="text-caption text-grey mt-1 hash-label">
                 /list/{{ listHash }}
@@ -36,7 +37,7 @@
               {{ effectivelyOffline ? 'Offline' : 'Online' }}
             </v-btn>
 
-            <v-btn variant="text" icon="mdi-share-variant" color="primary" @click="generateInvite" />
+            <v-btn v-if="listDoc?.owner" variant="text" icon="mdi-share-variant" color="primary" @click="generateInvite" />
             <v-btn to="/settings" variant="text" icon="mdi-cog" color="grey-darken-2" />
           </div>
 
@@ -166,7 +167,7 @@
           </v-data-table>
 
           <div class="d-sm-none">
-            <v-list v-if="shoppingList.length > 0" lines="three" class="pa-0">
+            <v-list v-if="shoppingList.length > 0" lines="two" class="pa-0">
               <template v-for="(item, idx) in filteredList" :key="item.id">
                 <v-list-item :class="{ 'item-done': item.done }">
                   <template v-slot:prepend>
@@ -200,10 +201,8 @@
                   </v-list-item-subtitle>
 
                   <template v-slot:append>
-                    <div class="d-flex flex-column">
-                      <v-btn variant="text" color="blue-grey" icon="mdi-pencil" size="x-small" density="comfortable" @click="openEditDialog(item)" />
-                      <v-btn variant="text" color="error" icon="mdi-delete" size="x-small" density="comfortable" @click="removeItem(item.id)" />
-                    </div>
+                    <v-btn variant="text" color="blue-grey" icon="mdi-pencil" size="x-small" density="comfortable" @click="openEditDialog(item)" />
+                    <v-btn variant="text" color="error" icon="mdi-delete" size="x-small" density="comfortable" @click="removeItem(item.id)" />
                   </template>
                 </v-list-item>
                 <v-divider v-if="idx < filteredList.length - 1" />
@@ -254,7 +253,9 @@
           <v-btn variant="tonal" color="primary" block prepend-icon="mdi-content-copy" class="mb-4" @click="copyInviteCode">
             Code kopieren
           </v-btn>
+
           <v-divider class="mb-4" />
+
           <p class="text-body-2 mb-2">Oder direkter Link:</p>
           <v-text-field
               :model-value="shareLink"
@@ -288,6 +289,7 @@
               <strong>{{ conflictResolutionInfo?.resolvedBy }}</strong> gelöst
               ({{ formatTime(conflictResolutionInfo?.resolvedAt) }}).
             </v-alert>
+
             <v-row v-if="conflictResolutionInfo?.versions?.length">
               <v-col
                   v-for="(v, i) in conflictResolutionInfo.versions"
@@ -317,6 +319,10 @@
                         {{ item.done ? 'mdi-check-circle' : 'mdi-circle-outline' }}
                       </v-icon>
                       <span class="text-body-2">{{ item.name }}</span>
+                      <span class="text-caption text-grey ml-1">({{ item.menge }})</span>
+                    </div>
+                    <div v-if="v.items.length === 0" class="text-caption text-grey font-italic">
+                      Keine Artikel
                     </div>
                   </v-card-text>
                 </v-card>
@@ -334,6 +340,7 @@
             <p class="text-body-2 text-grey mb-4">
               Während du offline warst wurden gleichzeitig Änderungen gemacht. Welche Version soll übernommen werden?
             </p>
+
             <v-row>
               <v-col
                   v-for="(v, i) in conflictVersions"
@@ -356,6 +363,10 @@
                         {{ item.done ? 'mdi-check-circle' : 'mdi-circle-outline' }}
                       </v-icon>
                       <span class="text-body-2">{{ item.name }}</span>
+                      <span class="text-caption text-grey ml-1">({{ item.menge }})</span>
+                    </div>
+                    <div v-if="v.items.length === 0" class="text-caption text-grey font-italic">
+                      Keine Artikel
                     </div>
                   </v-card-text>
                   <v-card-actions>
@@ -407,7 +418,7 @@ const PRODUCT_CATEGORIES = [
 
 const selectedCategory = ref('Sonstiges');
 
-let listDoc: (ListMeta & { _conflicts?: string[] }) | null = null;
+let listDoc: (ListMeta & { _conflicts?: string[], owner?: string }) | null = null;
 let changeListener: any = null;
 
 const pendingItemIds = ref<string[]>([]);
@@ -490,13 +501,18 @@ onMounted(async () => {
     doc_ids: [listHash.value],
   }).on('change', (change: any) => {
     if (change.id !== listHash.value || !change.doc) return;
-    const doc = change.doc as ListMeta & { _conflicts?: string[] };
+    const doc = change.doc as ListMeta & { _conflicts?: string[], owner?: string };
+
     listDoc = doc;
     currentListName.value = doc.name;
     shoppingList.value = doc.items || [];
+
     if (doc._conflicts && doc._conflicts.length > 0) {
       hasConflict.value = true;
-    } else if (doc.conflictResolution && !acknowledgedResolutionTimes.has(doc.conflictResolution.resolvedAt)) {
+    } else if (
+        doc.conflictResolution &&
+        !acknowledgedResolutionTimes.has(doc.conflictResolution.resolvedAt)
+    ) {
       hasConflict.value = true;
     } else {
       hasConflict.value = false;
@@ -525,26 +541,29 @@ const filteredList = computed(() => {
   return shoppingList.value.filter(i => i.name.toLowerCase().includes(q));
 });
 
-// NEU: Header-Konfiguration um 'updatedAt' erweitert
 const headers = [
   { title: 'Done',      key: 'done',     align: 'start' as const, sortable: false, width: '50px' },
   { title: 'Artikel',   key: 'name',     align: 'start' as const, sortable: true },
   { title: 'Kategorie', key: 'category', align: 'start' as const, sortable: true },
   { title: 'Menge',     key: 'menge',    align: 'start' as const, sortable: true },
   { title: 'Preis',     key: 'preis',    align: 'start' as const, sortable: true },
-  { title: 'Zuletzt geändert', key: 'updatedAt', align: 'start' as const, sortable: true },
+  { title: 'Geändert',  key: 'updatedAt', align: 'start' as const, sortable: true },
   { title: 'Aktionen',  key: 'actions',  align: 'end'   as const, sortable: false },
 ];
 
 const fetchItems = async () => {
   try {
-    const doc = await (listDb as any).get(listHash.value, { conflicts: true }) as ListMeta & { _conflicts?: string[] };
+    const doc = await (listDb as any).get(listHash.value, { conflicts: true }) as ListMeta & { _conflicts?: string[], owner?: string };
     listDoc = doc;
     currentListName.value = doc.name;
     shoppingList.value = doc.items || [];
+
     if (doc._conflicts && doc._conflicts.length > 0) {
       hasConflict.value = true;
-    } else if (doc.conflictResolution && !acknowledgedResolutionTimes.has(doc.conflictResolution.resolvedAt)) {
+    } else if (
+        doc.conflictResolution &&
+        !acknowledgedResolutionTimes.has(doc.conflictResolution.resolvedAt)
+    ) {
       hasConflict.value = true;
     }
   } catch (err: any) {
@@ -580,6 +599,7 @@ const saveItemsToDb = async (changedItemId?: string) => {
 
 const openConflictDialog = async () => {
   const doc = await (listDb as any).get(listHash.value, { conflicts: true }) as ListMeta & { _conflicts?: string[] };
+
   if (!doc._conflicts || doc._conflicts.length === 0) {
     if (doc.conflictResolution) {
       conflictAlreadyResolved.value = true;
@@ -592,11 +612,13 @@ const openConflictDialog = async () => {
     conflictDialog.value = true;
     return;
   }
+
   const allDocs: (ListMeta & { _conflicts?: string[] })[] = [doc];
   for (const rev of doc._conflicts) {
     const d = await (listDb as any).get(listHash.value, { rev }) as ListMeta;
     allDocs.push(d);
   }
+
   const firstItems = JSON.stringify(doc.items ?? []);
   if (allDocs.every(d => JSON.stringify(d.items ?? []) === firstItems)) {
     for (const rev of doc._conflicts) {
@@ -605,14 +627,20 @@ const openConflictDialog = async () => {
     hasConflict.value = false;
     return;
   }
+
   const user = currentUser.value || '';
   const versions: ConflictVersion[] = allDocs.map((d, i) => {
     let label: string;
-    if (d.savedBy === user) { label = 'Deine Version'; }
-    else if (d.savedBy) { label = `Version von ${d.savedBy}`; }
-    else { label = `Version ${String.fromCharCode(65 + i)}`; }
+    if (d.savedBy === user) {
+      label = 'Deine Version';
+    } else if (d.savedBy) {
+      label = `Version von ${d.savedBy}`;
+    } else {
+      label = `Version ${String.fromCharCode(65 + i)}`;
+    }
     return { items: d.items ?? [], label, savedAt: d.savedAt ?? null, savedBy: d.savedBy ?? null };
   });
+
   pendingConflictRevs           = doc._conflicts;
   pendingWinningDoc             = doc;
   conflictVersions.value        = versions;
@@ -622,9 +650,12 @@ const openConflictDialog = async () => {
 
 const applyConflictResolution = async (index: number) => {
   if (!pendingWinningDoc) return;
+
   const chosen = conflictVersions.value[index];
   if (!chosen) return;
+
   const chosenItems = [...chosen.items];
+
   const versionSnapshots: ConflictVersionSnapshot[] = conflictVersions.value.map((v, i) => ({
     label:   v.label,
     savedAt: v.savedAt ?? undefined,
@@ -632,10 +663,12 @@ const applyConflictResolution = async (index: number) => {
     items:   v.items,
     chosen:  i === index,
   }));
+
   for (const rev of pendingConflictRevs) {
     try { await (listDb as any).remove(listHash.value, rev); }
     catch (e) { console.warn('[conflict] failed to remove rev', rev, e); }
   }
+
   const resolvedAt  = new Date().toISOString();
   const resolvedDoc: ListMeta & { _conflicts?: string[] } = {
     ...pendingWinningDoc,
@@ -647,9 +680,11 @@ const applyConflictResolution = async (index: number) => {
     },
   };
   delete resolvedDoc._conflicts;
+
   const response = await listDb.put(resolvedDoc);
   listDoc = { ...resolvedDoc, _rev: response.rev };
   shoppingList.value = chosenItems;
+
   acknowledgedResolutionTimes.add(resolvedAt);
   persistAcked();
   hasConflict.value    = false;
@@ -677,6 +712,7 @@ const formatTime = (iso?: string | null): string => {
 
 const addItem = async () => {
   if (!searchQuery.value) return;
+  // Ensure the document is loaded before adding (race-condition guard)
   if (!listDoc) await fetchItems();
   if (!listDoc) return;
   const newItem: ListItem = {
@@ -714,14 +750,18 @@ const copyInviteCode = async () => {
   try {
     await navigator.clipboard.writeText(inviteCode.value);
     showSnackbar('Code kopiert!', 'success');
-  } catch { showSnackbar('Kopieren fehlgeschlagen.', 'error'); }
+  } catch {
+    showSnackbar('Kopieren fehlgeschlagen.', 'error');
+  }
 };
 
 const copyShareLink = async () => {
   try {
     await navigator.clipboard.writeText(shareLink.value);
     showSnackbar('Link kopiert!', 'success');
-  } catch { showSnackbar('Kopieren fehlgeschlagen.', 'error'); }
+  } catch {
+    showSnackbar('Kopieren fehlgeschlagen.', 'error');
+  }
 };
 
 const toggleDone = async (item: ListItem) => {
@@ -782,5 +822,8 @@ input[type="checkbox"] {
   background: rgba(var(--v-theme-primary), 0.08);
   text-align: center;
   word-break: break-all;
+}
+.cursor-pointer {
+  cursor: pointer;
 }
 </style>

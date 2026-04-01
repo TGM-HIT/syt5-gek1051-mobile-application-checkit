@@ -167,6 +167,7 @@ export interface UserListEntry {
     hash: string;
     name: string;
     createdAt: string;
+    owner?: string; // HINZUGEFÜGT FÜR PRIVATE LISTEN
 }
 
 interface UserListsDoc {
@@ -179,12 +180,37 @@ function userListsId(username: string): string {
     return `user_lists:${username}`;
 }
 
-export async function getUserLists(username: string): Promise<UserListEntry[]> {
+// LOKALER SPEICHER FÜR ANONYME LISTEN
+const LOCAL_ANON_LISTS_KEY = 'checkit_anon_lists';
+
+function saveAnonListLocally(hash: string, name: string) {
+    let lists = [];
+    try {
+        lists = JSON.parse(localStorage.getItem(LOCAL_ANON_LISTS_KEY) || '[]');
+    } catch { /* ignore */ }
+
+    if (!lists.find((l: any) => l.hash === hash)) {
+        lists.push({ hash, name, createdAt: new Date().toISOString() });
+        localStorage.setItem(LOCAL_ANON_LISTS_KEY, JSON.stringify(lists));
+    }
+}
+
+export async function getUserLists(username?: string): Promise<UserListEntry[]> {
+    let anonLists: UserListEntry[] = [];
+    try {
+        anonLists = JSON.parse(localStorage.getItem(LOCAL_ANON_LISTS_KEY) || '[]');
+    } catch { /* ignore */ }
+
+    if (!username) {
+        return anonLists; // Wenn nicht eingeloggt, nur private/anonyme Listen zeigen
+    }
+
     try {
         const doc = await listDb.get<UserListsDoc>(userListsId(username));
-        return doc.lists;
+        // Zusammenführen: User-Listen + lokale Anonyme
+        return [...doc.lists, ...anonLists];
     } catch (err: any) {
-        if (err.status === 404) return [];
+        if (err.status === 404) return anonLists;
         throw err;
     }
 }
@@ -198,7 +224,7 @@ async function recordListForUser(username: string, hash: string, name: string): 
         if (err.status !== 404) throw err;
         doc = { _id: id, lists: [] };
     }
-    doc.lists.push({ hash, name, createdAt: new Date().toISOString() });
+    doc.lists.push({ hash, name, createdAt: new Date().toISOString(), owner: username });
     await listDb.put(doc);
 }
 
@@ -206,10 +232,10 @@ async function recordListForUser(username: string, hash: string, name: string): 
 
 /**
  * Creates a new list:
- *  1. Reads the current counter (BEFORE incrementing) to use as hash input.
- *  2. Hashes  String(count) + VITE_PEPPER  with BLAKE2s-128 → 32-char hex.
- *  3. Saves the list document { _id: hash, name } to PouchDB (synced to CouchDB).
- *  4. Increments the counter.
+ * 1. Reads the current counter (BEFORE incrementing) to use as hash input.
+ * 2. Hashes  String(count) + VITE_PEPPER  with BLAKE2s-128 → 32-char hex.
+ * 3. Saves the list document { _id: hash, name } to PouchDB (synced to CouchDB).
+ * 4. Increments the counter.
  *
  * Returns { hash, newCount }.
  */
@@ -226,9 +252,22 @@ export async function createList(name: string, username?: string): Promise<{ has
         if (err.status !== 404) throw err;
     }
 
-    await listDb.put<ListMeta>({ _id: hash, name });
+    // LIST DOC UMSCHLAGEN: owner Feld hinzufügen
+    await listDb.put<ListMeta & { owner?: string }>({
+        _id: hash,
+        name,
+        owner: username // Wenn nicht übergeben = undefined (Anonyme Liste)
+    });
+
     const newCount = await incrementListsCreated();
-    if (username) await recordListForUser(username, hash, name);
+
+    if (username) {
+        await recordListForUser(username, hash, name);
+    } else {
+        // LOKAL SPEICHERN WENN ANONYM
+        saveAnonListLocally(hash, name);
+    }
+
     return { hash, newCount };
 }
 
