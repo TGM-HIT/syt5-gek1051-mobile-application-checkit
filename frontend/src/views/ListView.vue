@@ -418,7 +418,15 @@ const PRODUCT_CATEGORIES = [
 
 const selectedCategory = ref('Sonstiges');
 
-let listDoc: (ListMeta & { _conflicts?: string[], owner?: string }) | null = null;
+// 1. NEUES INTERFACE FÜR TYPESCRIPT
+interface ExtendedListMeta extends ListMeta {
+  _conflicts?: string[];
+  owner?: string;
+}
+
+// 2. DAS INTERFACE BEI DER DEKLARATION VERWENDEN
+let listDoc: ExtendedListMeta | null = null;
+
 let changeListener: any = null;
 
 const pendingItemIds = ref<string[]>([]);
@@ -501,7 +509,9 @@ onMounted(async () => {
     doc_ids: [listHash.value],
   }).on('change', (change: any) => {
     if (change.id !== listHash.value || !change.doc) return;
-    const doc = change.doc as ListMeta & { _conflicts?: string[], owner?: string };
+
+    // 3. DAS INTERFACE BEIM CASTEN VERWENDEN
+    const doc = change.doc as ExtendedListMeta;
 
     listDoc = doc;
     currentListName.value = doc.name;
@@ -553,7 +563,8 @@ const headers = [
 
 const fetchItems = async () => {
   try {
-    const doc = await (listDb as any).get(listHash.value, { conflicts: true }) as ListMeta & { _conflicts?: string[], owner?: string };
+    // 4. DAS INTERFACE BEIM FETCHEN VERWENDEN
+    const doc = await (listDb as any).get(listHash.value, { conflicts: true }) as ExtendedListMeta;
     listDoc = doc;
     currentListName.value = doc.name;
     shoppingList.value = doc.items || [];
