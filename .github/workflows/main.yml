@@ -14,12 +14,10 @@ permissions:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-
     steps:
       - name: 📥 Code auschecken
         uses: actions/checkout@v4
 
-      # Frontend Build Test
       - name: ⚙️ Node.js für Frontend aufsetzen
         uses: actions/setup-node@v4
         with:
@@ -31,7 +29,6 @@ jobs:
           yarn install
           yarn build
 
-      # Backend Build Test
       - name: ☕ Java JDK 21 für Backend aufsetzen
         uses: actions/setup-java@v4
         with:
@@ -83,7 +80,6 @@ jobs:
           retention-days: 7
 
   deploy-server:
-    # WICHTIG: Wartet jetzt auf Build UND E2E-Tests
     needs: [ build-and-test, e2e-tests ]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -95,19 +91,36 @@ jobs:
           host: ${{ secrets.DO_HOST }}
           username: root
           key: ${{ secrets.DO_SSH_KEY }}
-          # MÖGLICHKEIT A: Passphrase für den Key injizieren
           passphrase: ${{ secrets.DO_SSH_PASSPHRASE }}
           script: |
-            cd /var/www/checkit || (mkdir -p /var/www && cd /var/www && git clone https://github.com/${{ github.repository }}.git checkit && cd checkit)
+            # Sicherstellen, dass das Zielverzeichnis existiert
+            mkdir -p /var/www
+            cd /var/www
+
+            # Falls das Verzeichnis noch nicht existiert, mit Token klonen
+            if [ ! -d "checkit" ]; then
+              echo "Cloning private repository..."
+              git clone https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}.git checkit
+            fi
+
+            cd checkit
+
+            # Remote URL aktualisieren (um sicherzugehen, dass das Token aktuell bleibt)
+            git remote set-url origin https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}.git
+            
+            # Neuesten Stand ziehen
             git pull origin main
             
-            # Variablen für Docker in die .env schreiben
+            # .env Datei für Docker Compose erstellen
             echo "PASSWORD=${{ secrets.DOCKER_PASSWORD }}" > .env
             echo "FRONTEND_PORT=80" >> .env
             echo "BACKEND_PORT=8080" >> .env
             echo "DROPLET_IP=${{ secrets.DO_HOST }}" >> .env
             
+            # Container neu bauen und starten
             docker compose up -d --build
+            
+            # Alte/unbenutzte Docker-Images aufräumen (spart Platz auf dem Droplet)
             docker image prune -f
 
   build-pages:
@@ -116,11 +129,9 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-
       - name: 🏗️ Frontend für GitHub Pages bauen
         working-directory: ./frontend
         env:
@@ -130,7 +141,6 @@ jobs:
         run: |
           npm install
           npm run build-only
-
       - uses: actions/upload-pages-artifact@v3
         with:
           path: frontend/dist
