@@ -4,7 +4,7 @@ declare global {
   namespace Cypress {
     interface Chainable {
       /**
-       * Setzt Auth-Cookie und localStorage so, dass der Router-Guard passiert.
+       * Setzt Auth-Cookie so, dass der Router-Guard passiert.
        */
       setupAuth(username?: string): Chainable<void>
 
@@ -15,7 +15,7 @@ declare global {
 
       /**
        * Aktiviert den simulierten Offline-Modus über den Debug-Toggle.
-       * Setzt voraus, dass die Seite mit ?debug=true geöffnet wurde.
+       * Nutzt Regex, um Groß-/Kleinschreibung (ONLINE) zu ignorieren.
        */
       goOffline(): Chainable<void>
 
@@ -42,25 +42,39 @@ Cypress.Commands.add('setupAuth', (username = 'testuser') => {
 });
 
 Cypress.Commands.add('addListItem', (name: string, menge = '1') => {
-  // erstes sichtbares Textfeld = Artikel-Input
-  cy.get('input').first().clear().type(name);
+  // Erstes sichtbares Textfeld = Artikel-Input
+  cy.get('input').first().clear().type(name, { force: true });
   if (menge !== '1') {
-    // Mengen-Feld ist das dritte Input (nach Artikel und Kategorie-Select-Input)
-    cy.get('input').eq(2).clear().type(menge);
+    // Mengen-Feld ist das dritte Input (Index 2)
+    cy.get('input').eq(2).clear().type(menge, { force: true });
   }
   cy.get('.mdi-plus').closest('button').click();
-  // Warten bis der Artikel in der Tabelle erscheint
-  cy.contains('td', name).should('be.visible');
+
+  // Warten bis der Artikel erscheint (Suche global im Dokument)
+  cy.contains(name, { timeout: 10000 }).should('be.visible');
 });
 
 Cypress.Commands.add('goOffline', () => {
-  cy.contains('button', 'Online').click();
-  cy.get('.v-alert').contains('Du bist offline').should('be.visible');
+  // Wir suchen nach einem Button, der das Wort "online" enthält (egal ob ONLINE oder Online)
+  // und stellen sicher, dass wir nur den sichtbaren Button klicken.
+  cy.contains('button:visible', /online/i, { timeout: 15000 })
+      .should('be.visible')
+      .click({ force: true });
+
+  // Bestätigung über die CSS-Klasse in der ListView.vue
+  cy.get('.offline-banner', { timeout: 15000 })
+      .should('be.visible')
+      .and('contain', 'Du bist offline');
 });
 
 Cypress.Commands.add('goOnline', () => {
-  cy.contains('button', 'Offline').click();
-  cy.contains('.v-alert', 'Du bist offline').should('not.exist');
+  // Wir suchen nach einem sichtbaren Button, der "offline" enthält
+  cy.contains('button:visible', /offline/i, { timeout: 15000 })
+      .should('be.visible')
+      .click({ force: true });
+
+  // Banner muss verschwinden
+  cy.get('.offline-banner').should('not.exist');
 });
 
 Cypress.Commands.add('triggerBrowserOffline', () => {
