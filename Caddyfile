@@ -1,0 +1,11 @@
+checkit-shoppinglist.duckdns.org {
+    reverse_proxy frontend:80
+}
+
+checkit-shoppinglist.duckdns.org:8080 {
+    reverse_proxy backend:8080
+}
+
+checkit-shoppinglist.duckdns.org:5984 {
+    reverse_proxy db:5984
+}

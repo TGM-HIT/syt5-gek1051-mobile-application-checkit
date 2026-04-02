@@ -3,27 +3,40 @@ services:
     build:
       context: ./frontend
       args:
-        # Hier nutzen wir jetzt DROPLET_IP statt localhost!
-        VITE_COUCHDB_URL: http://admin:${PASSWORD}@${DROPLET_IP}:5984
+        # HIER DEINE DUCKDNS DOMAIN EINTRAGEN (und auf https:// achten!):
+        VITE_COUCHDB_URL: https://admin:${PASSWORD}@checkit-shoppinglist.duckdns.org:5984
         VITE_PEPPER: ${PASSWORD}
-    ports:
-      - "${FRONTEND_PORT}:80"
+    # Die "ports" wurden hier entfernt, das macht jetzt Caddy!
 
   backend:
     build:
       context: ./backend
-    ports:
-      - "${BACKEND_PORT}:8080"
+    # Die "ports" wurden hier entfernt!
 
   db:
     image: couchdb:latest
     environment:
       - COUCHDB_USER=admin
       - COUCHDB_PASSWORD=${PASSWORD}
-    ports:
-      - "5984:5984"
     volumes:
       - couchdb_data:/opt/couchdb/data
+    # Die "ports" wurden hier entfernt!
+
+  # --- DER NEUE TÜRSTEHER ---
+  caddy:
+    image: caddy:latest
+    restart: unless-stopped
+    ports:
+      - "80:80"       # Normales HTTP (wird automatisch auf HTTPS umgeleitet)
+      - "443:443"     # Sicheres HTTPS (Das Schloss!)
+      - "8080:8080"   # Backend über HTTPS
+      - "5984:5984"   # Datenbank über HTTPS
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
 
 volumes:
   couchdb_data:
+  caddy_data:
+  caddy_config:
