@@ -120,7 +120,7 @@
 
           <v-data-table
               :headers="headers"
-              :items="shoppingList"
+              :items="listWithPreview"
               :search="searchQuery"
               class="elevation-0 d-none d-sm-block"
               hide-default-footer
@@ -140,7 +140,8 @@
               <span :class="{
                 'done-text':         item.done,
                 'sync-error-text':   item.syncError,
-                'sync-pending-text': !item.syncError && pendingItemIds.includes(String(item.id))
+                'sync-pending-text': !item.syncError && pendingItemIds.includes(String(item.id)),
+                'preview-text':      item.id === '__preview__'
               }">
                 {{ item.name }}
                 <v-icon v-if="item.syncError" color="error" size="small" title="Sync fehlgeschlagen">mdi-sync-alert</v-icon>
@@ -168,7 +169,7 @@
 
           <div class="d-sm-none">
             <v-list v-if="shoppingList.length > 0" lines="two" class="pa-0">
-              <template v-for="(item, idx) in filteredList" :key="item.id">
+              <template v-for="(item, idx) in listWithPreview" :key="item.id">
                 <v-list-item :class="{ 'item-done': item.done }">
                   <template v-slot:prepend>
                     <input
@@ -182,8 +183,9 @@
                   <v-list-item-title :class="{
                     'done-text':         item.done,
                     'sync-error-text':   item.syncError,
-                    'sync-pending-text': !item.syncError && pendingItemIds.includes(String(item.id))
-                  }">
+                    'sync-pending-text': !item.syncError && pendingItemIds.includes(String(item.id)),
+'preview-text':      item.id === '__preview__'
+                    }">
                     {{ item.name }}
                     <v-icon v-if="item.syncError" color="error" size="x-small">mdi-sync-alert</v-icon>
                     <v-icon v-else-if="pendingItemIds.includes(String(item.id))" color="warning" size="x-small">mdi-cloud-upload-outline</v-icon>
@@ -549,6 +551,23 @@ const filteredList = computed(() => {
   return shoppingList.value.filter(i => i.name.toLowerCase().includes(q));
 });
 
+const previewItem = computed<ListItem | null>(() => {
+  if (!searchQuery.value.trim()) return null;
+  return {
+    id:       '__preview__',
+    name:     searchQuery.value,
+    menge:    newItemMenge.value || '1',
+    preis:    newItemPreis.value || undefined,
+    done:     false,
+    category: selectedCategory.value || 'Sonstiges',
+  };
+});
+
+const listWithPreview = computed(() => {
+  if (!previewItem.value) return shoppingList.value;
+  return [...shoppingList.value, previewItem.value];
+});
+
 const headers = [
   { title: 'Done',      key: 'done',     align: 'start' as const, sortable: false, width: '50px' },
   { title: 'Artikel',   key: 'name',     align: 'start' as const, sortable: true },
@@ -800,6 +819,13 @@ const saveEdit = async () => {
 </script>
 
 <style scoped>
+
+.preview-text {
+  color: grey !important;
+  font-style: italic;
+  opacity: 0.6;
+}
+
 .done-text {
   text-decoration: line-through !important;
   color: grey !important;
