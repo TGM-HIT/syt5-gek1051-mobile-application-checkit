@@ -304,6 +304,16 @@ Wöchentlch gibt es Meetings mit dem Kunden.
 
 > Als Benutzer möchte ich bestehende Artikel in der Liste nachträglich bearbeiten können, um Änderungen umzusetzen und jeder Artikel soll einen Zeitstempel besitzen, um Änderungen erkennen zu können.
 
+**Technische Umsetzung**
+
+Jedes ListItem-Objekt in der PouchDB verfügt über ein Pflichtfeld updatedAt: number (Unix-Timestamp).
+
+1. Zeitstempel-Logik: Beim Erstellen eines Artikels wird Date.now() gesetzt. Jede Änderung am Namen, der Menge oder dem Status (erledigt/offen) triggert eine Update-Funktion, die den Zeitstempel im Dokument aktualisiert, bevor listDb.put() aufgerufen wird.
+
+2. Edit-Modus: In der UI wird durch einen Klick auf das Stift-Icon (oder Doppelklick auf den Text) ein lokaler isEditing-State aktiviert. Der Text wird durch ein v-text-field ersetzt. Erst beim Verlassen (@blur) oder Bestätigen (@keyup.enter) wird die Änderung in die PouchDB persistiert.
+
+3. Anzeige: In den Artikeldetails oder via Tooltip wird der Zeitstempel mithilfe von date-fns (Format: dd.MM.yyyy HH:mm) benutzerfreundlich formatiert dargestellt.
+
 ## Story 16 – Gelöschte Artikel synchronisieren
 
 *HEAD: BAYF | Prio: MH | SP: 3*
@@ -321,6 +331,26 @@ Wöchentlch gibt es Meetings mit dem Kunden.
 *HEAD: STEE | Prio: SH | SP: 5*
 
 > Als Benutzer möchte ich die App über eine öffentliche URL erreichen können, um sie über einen Browser erreichen zu können und sie als App hinterlegen zu können bei der ebenfalls die Daten beim Schließen gespeichert werden.
+
+**Technische Umsetzung (Infrastruktur & CI/CD)**
+
+Das produktive System läuft auf einem DigitalOcean Droplet (Ubuntu) und wird über eine automatisierte Pipeline aktuell gehalten.
+
+1. CI/CD Pipeline (GitHub Actions):
+Um die Ressourcen des Servers zu schonen, findet der Build-Prozess auf GitHub-Runnern statt:
+
+- Build & Test: Java (Gradle) und Node.js (Vite) werden kompiliert.
+
+- Docker Build: Die Images werden gebaut und in die GitHub Container Registry (ghcr.io) gepusht.
+
+- Auto-Deploy: Per SSH-Action wird der Server angewiesen, die neuen Images zu ziehen (docker compose pull) und ohne Unterbrechung neu zu starten.
+
+2. Reverse Proxy & HTTPS (Caddy):
+Ein Caddy-Server fungiert als Türsteher (Reverse Proxy) in einem eigenen Docker-Container:
+
+- Automatische SSL-Zertifikate: Caddy kommuniziert eigenständig mit Let's Encrypt, um ein gültiges HTTPS-Zertifikat für checkit-shoppinglist.duckdns.org zu beziehen und zu erneuern.
+
+- Routing: Eingehende Anfragen auf Port 443 werden intern an den Frontend-Container (Port 80) oder den Backend-Container (Port 8080) weitergeleitet.
 
 ## Story 19 – Verschlüsselte Benutzerdaten
 
@@ -345,6 +375,16 @@ Wöchentlch gibt es Meetings mit dem Kunden.
 *HEAD: STEE | Prio: NH | SP: 5*
 
 > Als Benutzer möchte ich ein private Liste erstellen können, damit ich anonym Einkaufen gehen kann.
+
+**Technische Umsetzung**
+
+Private Listen unterscheiden sich technisch durch ihre Synchronisations-Eigenschaften und Verschlüsselung:
+
+1. Lokal-Only Flag: Beim Erstellen der Liste kann das Flag isPrivate: true gesetzt werden. Ist dieses aktiv, wird für diese spezifische Liste der sync()-Prozess mit der Remote-CouchDB unterbunden. Die Daten verlassen niemals den lokalen IndexedDB-Speicher des Browsers.
+
+2. Anonymität: Private Listen generieren keinen global aufrufbaren Einladungscode. Die Identifikation erfolgt über einen lokalen Zufalls-Hash, der nicht in der globalen checkit_lists-Datenbank registriert wird.
+
+3. Verschlüsselung (Optional): Sensible Inhalte privater Listen können zusätzlich im localStorage mit einem nutzerdefinierten Pin verschlüsselt werden (AES-256 via crypto-js), bevor sie in der PouchDB abgelegt werden.
 
 ## Story 23 – Authentifizierung
 
