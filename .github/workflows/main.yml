@@ -82,16 +82,9 @@ jobs:
           path: frontend/cypress/screenshots
           retention-days: 7
 
-      - name: 🎥 Videos hochladen
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: cypress-videos
-          path: frontend/cypress/videos
-          retention-days: 7
-
   deploy-server:
-    needs: build-and-test
+    # WICHTIG: Wartet jetzt auf Build UND E2E-Tests
+    needs: [ build-and-test, e2e-tests ]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
@@ -102,11 +95,13 @@ jobs:
           host: ${{ secrets.DO_HOST }}
           username: root
           key: ${{ secrets.DO_SSH_KEY }}
+          # MÖGLICHKEIT A: Passphrase für den Key injizieren
+          passphrase: ${{ secrets.DO_SSH_PASSPHRASE }}
           script: |
             cd /var/www/checkit || (mkdir -p /var/www && cd /var/www && git clone https://github.com/${{ github.repository }}.git checkit && cd checkit)
             git pull origin main
             
-            # Variablen für Docker in die .env schreiben (nutzt dein DOCKER_PASSWORD)
+            # Variablen für Docker in die .env schreiben
             echo "PASSWORD=${{ secrets.DOCKER_PASSWORD }}" > .env
             echo "FRONTEND_PORT=80" >> .env
             echo "BACKEND_PORT=8080" >> .env
@@ -130,7 +125,6 @@ jobs:
         working-directory: ./frontend
         env:
           GITHUB_PAGES: true
-          # Injiziert IP und PW in den Build-Prozess
           VITE_COUCHDB_URL: http://admin:${{ secrets.DOCKER_PASSWORD }}@${{ secrets.DO_HOST }}:5984
           VITE_PEPPER: ${{ secrets.DOCKER_PASSWORD }}
         run: |
