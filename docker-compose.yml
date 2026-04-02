@@ -3,7 +3,8 @@ services:
     build:
       context: ./frontend
       args:
-        VITE_COUCHDB_URL: http://admin:${PASSWORD}@localhost:5984
+        # Hier nutzen wir jetzt DROPLET_IP statt localhost!
+        VITE_COUCHDB_URL: http://admin:${PASSWORD}@${DROPLET_IP}:5984
         VITE_PEPPER: ${PASSWORD}
     ports:
       - "${FRONTEND_PORT}:80"
@@ -22,5 +23,7 @@ services:
     ports:
       - "5984:5984"
     volumes:
-      - ./couchdb-config/local.ini:/opt/couchdb/etc/local.d/cors.ini
-    #  - couchdb_data:/opt/couchdb/data
+      - couchdb_data:/opt/couchdb/data
+
+volumes:
+  couchdb_data:

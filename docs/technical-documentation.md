@@ -6,6 +6,20 @@
 
 > Als Benutzer möchte ich eine Einkaufsliste anlegen können, um eine übersichtliche Liste meiner Einkaufsartikel zu sehen.
 
+- Identifikation: Jede Liste wird über einen Hash (ID) identifiziert, 
+der als URL-Parameter (/list/:hash) dient.
+
+- Lokal: PouchDB (listDb) speichert das Dokument mit der ID des Hashs.
+
+- Remote: Automatische Synchronisation mit CouchDB, 
+sobald eine Verbindung besteht.
+
+### Workflow
+- Datenabruf: listDb.get<ListMeta>(listHash.value) 
+lädt den Namen der Liste und die zugehörigen items.
+
+
+
 ## Story 2 – Artikel hinzufügen und suchen
 
 *HEAD: STEE | Prio: MH | SP: 5*
@@ -41,7 +55,7 @@ Die Umsetzung erfolgt durch eine reaktive Verknüpfung der Eingabefelder mit dem
 
 > Als Benutzer möchte ich Artikel aus meiner Übersicht entfernen, wenn ich sie nicht mehr brauche, um die Liste übersichtlich zu halten aber sie leicht wiederherstellen zu können.
 
-## Story 4 – Entgültiges löschen der Einträge
+## Story 4 – Sofortiges Hochladen von Änderungen
 
 *HEAD: JEIJ | Prio: SH | SP: 5*
 
@@ -238,19 +252,6 @@ Wenn Anna den 2-Wege-Konflikt (`3-clara` vs `3-anna`) auflöst und erst danach B
 
 > Als Benutzer möchte ich meine Artikel in Kategorien einteilen, um sie besser zu finden.
 
- - addItem(): Beim Erstellen eines neuen Objekts wird der Wert von 
-selectedCategory.value in das neue ListItem gemappt.
-
- - Persistence: Die Kategorie wird zusammen mit dem Item-Objekt in der 
-PouchDB/CouchDB gespeichert und somit geräteübergreifend synchronisiert.
-
-Die v-data-table nutzt das Prop :group-by="[{ key: 'category', order: 'asc' }]",
-um Artikel automatisch in kategorisierten Sektionen darzustellen.
-
-Das Interface ListItem wurde um das Feld category erweitert:
-
- - Feld: category: string
- - Standardwert: "Sonstiges"
 ## Story 10 – Technical Report
 
 *HEAD: MAUA | Prio: MH | SP: 5*
