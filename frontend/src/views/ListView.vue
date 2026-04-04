@@ -419,6 +419,7 @@ const PRODUCT_CATEGORIES = [
 ];
 
 const selectedCategory = ref('Sonstiges');
+const selectedFilterCategory = ref<string | null>(null);
 
 interface ExtendedListMeta extends ListMeta {
   _conflicts?: string[];
@@ -546,9 +547,13 @@ const selectedId   = ref<string>('');
 const editModel    = ref<ListItem>({ id: '', name: '', menge: '', done: false, category: 'Sonstiges' });
 
 const filteredList = computed(() => {
-  if (!searchQuery.value) return shoppingList.value;
+  let list = shoppingList.value;
+  if (selectedFilterCategory.value) {
+    list = list.filter(i => i.category === selectedFilterCategory.value);
+  }
+  if (!searchQuery.value) return list;
   const q = searchQuery.value.toLowerCase();
-  return shoppingList.value.filter(i => i.name.toLowerCase().includes(q));
+  return list.filter(i => i.name.toLowerCase().includes(q));
 });
 
 const previewItem = computed<ListItem | null>(() => {
@@ -564,8 +569,11 @@ const previewItem = computed<ListItem | null>(() => {
 });
 
 const listWithPreview = computed(() => {
-  if (!previewItem.value) return shoppingList.value;
-  return [...shoppingList.value, previewItem.value];
+  const base = selectedFilterCategory.value
+      ? shoppingList.value.filter(i => i.category === selectedFilterCategory.value)
+      : shoppingList.value;
+  if (!previewItem.value) return base;
+  return [...base, previewItem.value];
 });
 
 const headers = [
@@ -742,6 +750,21 @@ const addItem = async () => {
   if (!searchQuery.value) return;
   if (!listDoc) await fetchItems();
   if (!listDoc) return;
+
+  const existing = shoppingList.value.find(
+      i => i.name.toLowerCase() === searchQuery.value.toLowerCase()
+          && i.category === (selectedCategory.value || 'Sonstiges')
+  );
+  if (existing) {
+    const currentMenge = parseFloat(existing.menge) || 1;
+    existing.menge = String(currentMenge + (parseFloat(newItemMenge.value) || 1));
+    existing.updatedAt = new Date().toISOString();
+    searchQuery.value  = '';
+    newItemMenge.value = '';
+    newItemPreis.value = '';
+    await saveItemsToDb(existing.id);
+    return;
+  }
   const newItem: ListItem = {
     id:        Date.now().toString(),
     name:      searchQuery.value,
