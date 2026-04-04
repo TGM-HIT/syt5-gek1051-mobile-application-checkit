@@ -116,6 +116,20 @@
             </v-col>
           </v-row>
 
+          <v-select
+              v-model="selectedFilterCategory"
+              :items="[{ id: null, label: 'Alle Kategorien' }, ...PRODUCT_CATEGORIES]"
+              item-title="label"
+              item-value="id"
+              label="Kategorie filtern"
+              variant="outlined"
+              density="comfortable"
+              hide-details
+              clearable
+              class="mb-4"
+              style="max-width: 250px;"
+          />
+
           <v-divider class="mb-4"></v-divider>
 
           <v-data-table
