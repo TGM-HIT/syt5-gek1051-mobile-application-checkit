@@ -234,23 +234,27 @@ Wer zuerst klickt, wählt eine Version → alle anderen Konfliktrevisionen werde
 
 Wenn Anna den 2-Wege-Konflikt (`3-clara` vs `3-anna`) auflöst und erst danach Ben online geht, entsteht ein **neuer** 2-Wege-Konflikt zwischen dem aufgelösten Dokument und Bens Version — kein Dreier-Konflikt. Das Verhalten ist identisch, nur mit zwei statt drei Karten.
 
----
 
-### Zusammenfassung der Regeln
-
-| Situation                                      | Verhalten                                                                   |
-| ---------------------------------------------- | --------------------------------------------------------------------------- |
-| 2 Versionen in `_conflicts`                    | Dialog zeigt 2 Karten nebeneinander, Nutzer wählt eine                      |
-| 3+ Versionen in `_conflicts`                   | Dialog zeigt 3+ Karten (Dialog breiter), Nutzer wählt eine                  |
-| Konflikt bereits gelöst, anderer Nutzer klickt | Zeigt alle Versionen read-only, gewählte grün hervorgehoben, nur OK möglich |
-| Nutzer mag das Ergebnis nicht                  | Muss Artikel manuell ändern – kein erneuter Konfliktdialog                  |
-| Alle Versionen inhaltlich identisch            | Wird ohne Dialog im Hintergrund aufgelöst                                   |
 
 ## Story 9 – Artikel in Kategorien einteilen
 
 *HEAD: BAYF | Prio: MH | SP: 3*
 
 > Als Benutzer möchte ich meine Artikel in Kategorien einteilen, um sie besser zu finden.
+
+- addItem(): Beim Erstellen eines neuen Objekts wird der Wert von 
+  selectedCategory.value in das neue ListItem gemappt.
+
+- Persistence: Die Kategorie wird zusammen mit dem Item-Objekt in der 
+  PouchDB/CouchDB gespeichert und somit geräteübergreifend synchronisiert.
+
+Die v-data-table nutzt das Prop :group-by="[{ key: 'category', order: 'asc' }]",
+um Artikel automatisch in kategorisierten Sektionen darzustellen.
+
+Das Interface ListItem wurde um das Feld category erweitert:
+
+- Feld: category: string
+- Standardwert: "Sonstiges"
 
 ## Story 10 – Technical Report
 
