@@ -7,7 +7,6 @@
           <div class="d-flex align-center mb-2">
             <div class="flex-grow-1 min-width-0">
               <h1 class="text-h5 text-sm-h4 font-weight-bold text-truncate">
-                <v-progress-circular v-if="isLoading" indeterminate size="24" class="mr-2" color="primary"></v-progress-circular>
                 {{ currentListName }}
                 <v-chip v-if="listOwner === undefined && !isLoading" size="small" color="secondary" variant="tonal" class="ml-2">Privat</v-chip>
               </h1>
@@ -117,16 +116,30 @@
             </v-col>
           </v-row>
 
+          <v-select
+              v-model="selectedFilterCategory"
+              :items="[{ id: null, label: 'Alle Kategorien' }, ...PRODUCT_CATEGORIES]"
+              item-title="label"
+              item-value="id"
+              label="Kategorie filtern"
+              variant="outlined"
+              density="comfortable"
+              hide-details
+              clearable
+              class="mb-4"
+              style="max-width: 250px;"
+          />
+
           <v-divider class="mb-4"></v-divider>
 
           <v-data-table
               :headers="headers"
-              :items="shoppingList"
+              :items="listWithPreview"
               :search="searchQuery"
               class="elevation-0 d-none d-sm-block"
               hide-default-footer
           >
-            <template v-slot:item.done="{ item }">
+            <template v-slot:[`item.done`]="{ item }">
               <div @click.stop>
                 <input
                     type="checkbox"
@@ -137,11 +150,12 @@
               </div>
             </template>
 
-            <template v-slot:item.name="{ item }">
+            <template v-slot:[`item.name`]="{ item }">
               <span :class="{
-                'done-text':         item.done,
-                'sync-error-text':   item.syncError,
-                'sync-pending-text': !item.syncError && pendingItemIds.includes(String(item.id))
+                'done-text': item.done,
+                'sync-error-text': item.syncError,
+                'sync-pending-text': !item.syncError && pendingItemIds.includes(String(item.id)),
+                'preview-text': item.id === '__preview__'
               }">
                 {{ item.name }}
                 <v-icon v-if="item.syncError" color="error" size="small" title="Sync fehlgeschlagen">mdi-sync-alert</v-icon>
@@ -149,17 +163,17 @@
               </span>
             </template>
 
-            <template v-slot:item.preis="{ item }">
+            <template v-slot:[`item.preis`]="{ item }">
               <span v-if="item.preis">€ {{ item.preis }}</span>
             </template>
 
-            <template v-slot:item.updatedAt="{ item }">
+            <template v-slot:[`item.updatedAt`]="{ item }">
               <span class="text-caption text-grey">
                 {{ item.updatedAt ? formatTime(item.updatedAt) : '-' }}
               </span>
             </template>
 
-            <template v-slot:item.actions="{ item }">
+            <template v-slot:[`item.actions`]="{ item }">
               <div class="d-flex justify-end">
                 <v-btn variant="text" color="blue-grey" class="mr-2" icon="mdi-pencil" size="small" @click="openEditDialog(item)" />
                 <v-btn variant="text" color="error" icon="mdi-delete" size="small" @click="removeItem(item.id)" />
@@ -169,7 +183,7 @@
 
           <div class="d-sm-none">
             <v-list v-if="shoppingList.length > 0" lines="two" class="pa-0">
-              <template v-for="(item, idx) in filteredList" :key="item.id">
+              <template v-for="(item, idx) in listWithPreview" :key="item.id">
                 <v-list-item :class="{ 'item-done': item.done }">
                   <template v-slot:prepend>
                     <input
@@ -183,7 +197,8 @@
                   <v-list-item-title :class="{
                     'done-text':         item.done,
                     'sync-error-text':   item.syncError,
-                    'sync-pending-text': !item.syncError && pendingItemIds.includes(String(item.id))
+                    'sync-pending-text': !item.syncError && pendingItemIds.includes(String(item.id)),
+                    'preview-text': item.id === '__preview__'
                   }">
                     {{ item.name }}
                     <v-icon v-if="item.syncError" color="error" size="x-small">mdi-sync-alert</v-icon>
@@ -206,7 +221,7 @@
                     <v-btn variant="text" color="error" icon="mdi-delete" size="x-small" density="comfortable" @click="removeItem(item.id)" />
                   </template>
                 </v-list-item>
-                <v-divider v-if="idx < filteredList.length - 1" />
+                <v-divider v-if="idx < listWithPreview.length - 1" />
               </template>
             </v-list>
           </div>
@@ -400,10 +415,8 @@ import PriceTagScanDialog from '@/components/PriceTagScanDialog.vue';
 
 const route = useRoute();
 
-const listHash        = computed(() => route.params.hash as string ?? '');
-const isLoading       = ref(true);
-const currentListName = ref<string>('Lade Liste...');
-const listOwner       = ref<string | undefined | null>(null);
+const listHash = computed(() => route.params.hash as string ?? '');
+const currentListName = ref<string>('Einkaufsliste');
 
 const effectivelyOffline = computed(() => simulatedOffline.value || isOffline.value);
 const debugMode = computed(() => route.query.debug === 'true');
@@ -420,6 +433,7 @@ const PRODUCT_CATEGORIES = [
 ];
 
 const selectedCategory = ref('Sonstiges');
+const selectedFilterCategory = ref<string | null>(null);
 
 interface ExtendedListMeta extends ListMeta {
   _conflicts?: string[];
@@ -427,9 +441,11 @@ interface ExtendedListMeta extends ListMeta {
 }
 
 let listDoc: ExtendedListMeta | null = null;
+const listOwner = ref<string | undefined>(undefined);
 
 let changeListener: any = null;
 
+const isLoading = ref(false);
 const pendingItemIds = ref<string[]>([]);
 const pendingCount   = computed(() => pendingItemIds.value.length);
 
@@ -545,10 +561,24 @@ const inviteCode    = ref('');
 const selectedId   = ref<string>('');
 const editModel    = ref<ListItem>({ id: '', name: '', menge: '', done: false, category: 'Sonstiges' });
 
-const filteredList = computed(() => {
-  if (!searchQuery.value) return shoppingList.value;
-  const q = searchQuery.value.toLowerCase();
-  return shoppingList.value.filter(i => i.name.toLowerCase().includes(q));
+const previewItem = computed<ListItem | null>(() => {
+  if (!searchQuery.value.trim()) return null;
+  return {
+    id: '__preview__',
+    name: searchQuery.value,
+    menge: newItemMenge.value || '1',
+    preis: newItemPreis.value || undefined,
+    done: false,
+    category: selectedCategory.value || 'Sonstiges',
+  };
+});
+
+const listWithPreview = computed(() => {
+  const base = selectedFilterCategory.value
+    ? shoppingList.value.filter(i => i.category === selectedFilterCategory.value)
+    : shoppingList.value;
+  if (!previewItem.value) return base;
+  return [...base, previewItem.value];
 });
 
 const headers = [
@@ -581,7 +611,7 @@ const fetchItems = async () => {
   } catch (err: any) {
     if (err.status === 404) {
       currentListName.value = 'Liste nicht gefunden';
-      listOwner.value = null;
+      listOwner.value = undefined;
     } else {
       console.warn('[fetchItems]', err);
     }
@@ -733,17 +763,34 @@ const addItem = async () => {
   if (!searchQuery.value) return;
   if (!listDoc) await fetchItems();
   if (!listDoc) return;
+
+  const existing = shoppingList.value.find(
+    i => i.name.toLowerCase() === searchQuery.value.toLowerCase()
+    && i.category === (selectedCategory.value || 'Sonstiges')
+  );
+
+  if (existing) {
+    const currentMenge = parseFloat(existing.menge) || 1;
+    existing.menge = String(currentMenge + (parseFloat(newItemMenge.value) || 1));
+    existing.updatedAt = new Date().toISOString();
+    searchQuery.value = '';
+    newItemMenge.value = '';
+    newItemPreis.value = '';
+    await saveItemsToDb(existing.id);
+    return;
+  }
+
   const newItem: ListItem = {
-    id:        Date.now().toString(),
-    name:      searchQuery.value,
-    menge:     newItemMenge.value || '1',
-    preis:     newItemPreis.value || undefined,
-    done:      false,
-    category:  selectedCategory.value || 'Sonstiges',
+    id: Date.now().toString(),
+    name: searchQuery.value,
+    menge: newItemMenge.value || '1',
+    preis: newItemPreis.value || undefined,
+    done: false,
+    category: selectedCategory.value || 'Sonstiges',
     updatedAt: new Date().toISOString(),
   };
   shoppingList.value.push(newItem);
-  searchQuery.value  = '';
+  searchQuery.value = '';
   newItemMenge.value = '';
   newItemPreis.value = '';
   await saveItemsToDb(newItem.id);
@@ -810,6 +857,12 @@ const saveEdit = async () => {
 </script>
 
 <style scoped>
+.preview-text {
+  color: grey !important;
+  font-style: italic;
+  opacity: 0.6;
+}
+
 .done-text {
   text-decoration: line-through !important;
   color: grey !important;
@@ -840,8 +893,5 @@ input[type="checkbox"] {
   background: rgba(var(--v-theme-primary), 0.08);
   text-align: center;
   word-break: break-all;
-}
-.cursor-pointer {
-  cursor: pointer;
 }
 </style>
