@@ -1,0 +1,141 @@
+name: CheckIT CI/CD Pipeline (Dev)
+
+on:
+  push:
+    branches: [ "dev" ]
+
+permissions:
+  contents: read
+  packages: write
+  pages: write
+  id-token: write
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Code auschecken
+        uses: actions/checkout@v4
+        
+      - name: ⚙️ Node.js für Frontend aufsetzen
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          
+      - name: 📦 Frontend Abhängigkeiten installieren & Build Test
+        working-directory: ./frontend
+        run: |
+          yarn install
+          yarn build
+          
+      - name: ☕ Java JDK 21 für Backend aufsetzen
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          
+      - name: 🔨 Backend mit Gradle bauen
+        working-directory: ./backend
+        run: |
+          chmod +x gradlew
+          ./gradlew bootJar -x test
+
+  build-images:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Code auschecken
+        uses: actions/checkout@v4
+        
+      - name: 🔠 Repository-Namen für Docker formatieren
+        run: echo "REPO=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+        
+      - name: 🔑 Login bei GitHub Container Registry (GHCR)
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: 🐳 Frontend Image bauen & pushen
+        run: |
+          docker build \
+            --build-arg VITE_COUCHDB_URL="https://admin:${{ secrets.DOCKER_PASSWORD }}@checkit-shoppinglist.duckdns.org:5984" \
+            --build-arg VITE_PEPPER="${{ secrets.DOCKER_PASSWORD }}" \
+            -t ghcr.io/${{ env.REPO }}-frontend:latest ./frontend
+          docker push ghcr.io/${{ env.REPO }}-frontend:latest
+          
+      - name: 🐳 Backend Image bauen & pushen
+        run: |
+          docker build -t ghcr.io/${{ env.REPO }}-backend:latest ./backend
+          docker push ghcr.io/${{ env.REPO }}-backend:latest
+
+  deploy-server:
+    needs: build-images
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🚀 Deployment via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DO_HOST }}
+          username: root
+          key: ${{ secrets.DO_SSH_KEY }}
+          passphrase: ${{ secrets.DO_SSH_PASSPHRASE }}
+          script: |
+            REPO=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+            mkdir -p /var/www/checkit
+            cd /var/www/checkit
+            
+            if [ ! -d ".git" ]; then
+              git clone -b dev https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}.git .
+            else
+              git remote set-url origin https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}.git
+              git reset --hard
+              git clean -fd
+              git fetch --all
+              git checkout -B dev origin/dev
+            fi
+            
+            echo "${{ secrets.GH_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+            echo "PASSWORD=${{ secrets.DOCKER_PASSWORD }}" > .env
+            echo "FRONTEND_PORT=80" >> .env
+            echo "BACKEND_PORT=8080" >> .env
+            echo "DROPLET_IP=${{ secrets.DO_HOST }}" >> .env
+            
+            cat <<EOF > docker-compose.override.yml
+            services:
+              frontend:
+                image: ghcr.io/${REPO}-frontend:latest
+              backend:
+                image: ghcr.io/${REPO}-backend:latest
+            EOF
+            
+            docker compose pull
+            docker compose up -d --force-recreate --no-build
+            docker image prune -f
+
+  deploy-pages:
+    if: github.ref == 'refs/heads/main'
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: 🏗️ Build für Pages
+        working-directory: ./frontend
+        env:
+          VITE_COUCHDB_URL: https://admin:${{ secrets.DOCKER_PASSWORD }}@checkit-shoppinglist.duckdns.org:5984
+          VITE_PEPPER: ${{ secrets.DOCKER_PASSWORD }}
+        run: |
+          yarn install
+          yarn build
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: frontend/dist
+      - id: deployment
+        uses: actions/deploy-pages@v4
