@@ -331,3 +331,19 @@ export async function redeemInviteCode(code: string): Promise<{ listHash: string
         throw err;
     }
 }
+
+/** * Holt eine Liste. Wenn sie lokal noch nicht synchronisiert wurde,
+ * fragt sie als Fallback direkt den Remote-Server.
+ */
+export async function getListWithRemoteFallback(hash: string): Promise<ListMeta> {
+    try {
+        return await listDb.get<ListMeta>(hash, { conflicts: true });
+    } catch (err: any) {
+        // FALLBACK: Wenn lokal 404 und wir online sind, frage direkt den Server!
+        if (err.status === 404 && COUCHDB_URL && !isOffline.value && !simulatedOffline.value) {
+            const remoteDb = new PouchDB(`${COUCHDB_URL}/checkit_lists`);
+            return await remoteDb.get<ListMeta>(hash, { conflicts: true });
+        }
+        throw err;
+    }
+}
