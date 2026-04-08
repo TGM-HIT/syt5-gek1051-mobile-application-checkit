@@ -1,8 +1,8 @@
-name: CheckIT CI/CD Pipeline
+name: CheckIT CI/CD Pipeline (Dev)
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "dev" ]
 
 permissions:
   contents: read
@@ -87,11 +87,11 @@ jobs:
             cd /var/www/checkit
             
             if [ ! -d ".git" ]; then
-              git clone https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}.git .
+              git clone -b dev https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}.git .
             else
               git remote set-url origin https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}.git
-              git reset --hard
-              git pull origin main
+              git fetch origin
+              git reset --hard origin/dev
             fi
             
             echo "${{ secrets.GH_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
