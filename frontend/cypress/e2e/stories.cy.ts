@@ -77,9 +77,9 @@ describe('CheckIT - Stories & User Flow', () => {
 
     cy.get('input').eq(0).clear().type('Apfel');
 
-    // Kategorie wählen
-    cy.get('.v-select').click();
-    cy.get('.v-overlay-container').contains('Obst & Gemüse').click({ force: true });
+    // Kategorie wählen (Vuetify Fix)
+    cy.get('.v-select').first().click({ force: true });
+    cy.get('.v-overlay-container').contains('Obst & Gemüse').first().click({ force: true });
 
     cy.get('input').eq(2).clear().type('5');
     cy.get('.mdi-plus').closest('button').click();

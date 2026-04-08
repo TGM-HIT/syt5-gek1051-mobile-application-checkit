@@ -77,12 +77,12 @@ describe('CheckIT Einkaufs-App - User Flow', () => {
 
     cy.get('input').eq(0).clear().type('Apfel');
 
-    // Select öffnen
-    cy.get('.v-select').click();
+    // Select öffnen (Vuetify Fix)
+    cy.get('.v-select').first().click({ force: true });
     
     // { force: true } ignoriert die Sichtbarkeitsprüfung während 
     // der Vuetify-Dropdown-Animation und klickt das Element im DOM.
-    cy.get('.v-overlay-container').contains('Obst & Gemüse').click({ force: true });
+    cy.get('.v-overlay-container').contains('Obst & Gemüse').first().click({ force: true });
 
     cy.get('input').eq(2).clear().type('5');
     cy.get('.mdi-plus').closest('button').click();
