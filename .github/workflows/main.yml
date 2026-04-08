@@ -103,9 +103,9 @@ jobs:
             cat <<EOF > docker-compose.override.yml
             services:
               frontend:
-                image: ghcr.io/\${REPO}-frontend:latest
+                image: ghcr.io/${REPO}-frontend:latest
               backend:
-                image: ghcr.io/\${REPO}-backend:latest
+                image: ghcr.io/${REPO}-backend:latest
             EOF
             
             docker compose pull
