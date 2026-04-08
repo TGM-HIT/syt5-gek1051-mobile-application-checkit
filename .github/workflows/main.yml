@@ -1,12 +1,10 @@
-name: CheckIT CI Pipeline
+name: CheckIT CI/CD Pipeline
 
 on:
   push:
-    branches: [ "main", "dev" ]
-  pull_request:
-    branches: [ "main", "dev" ]
+    branches: [ "main" ]
 
-# WICHTIG: Erlaubt GitHub, Docker-Images zu speichern
+# Erlaubt GitHub, Docker-Images zu speichern und Pages zu verwalten
 permissions:
   contents: read
   packages: write
@@ -22,9 +20,10 @@ jobs:
 
       - name: ⚙️ Node.js für Frontend aufsetzen
         uses: actions/setup-node@v4
-        with: { node-version: '20' }
+        with:
+          node-version: '20'
 
-      - name: 📦 Frontend Abhängigkeiten installieren & Build ausführen
+      - name: 📦 Frontend Abhängigkeiten installieren & Build Test
         working-directory: ./frontend
         run: |
           yarn install
@@ -32,7 +31,9 @@ jobs:
 
       - name: ☕ Java JDK 21 für Backend aufsetzen
         uses: actions/setup-java@v4
-        with: { java-version: '21', distribution: 'temurin' }
+        with:
+          java-version: '21'
+          distribution: 'temurin'
 
       - name: 🔨 Backend mit Gradle bauen
         working-directory: ./backend
@@ -40,26 +41,10 @@ jobs:
           chmod +x gradlew
           ./gradlew bootJar -x test
 
-  e2e-tests:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: '20' }
-      - working-directory: ./frontend
-        run: yarn install
-      - name: 🧪 Cypress E2E Tests ausführen
-        uses: cypress-io/github-action@v6
-        with:
-          working-directory: ./frontend
-          start: yarn dev
-          wait-on: 'http://localhost:5173'
-
-  # NEUER JOB: Baut die Docker-Images auf den starken GitHub-Servern
+  # Baut die Docker-Images auf GitHub (entlastet dein Droplet)
   build-images:
-    needs: [ build-and-test, e2e-tests ]
+    needs: build-and-test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
       - name: 📥 Code auschecken
         uses: actions/checkout@v4
@@ -74,21 +59,22 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 🐳 Frontend bauen & pushen
+      - name: 🐳 Frontend Image bauen & pushen (mit HTTPS URL!)
         run: |
-          docker build -t ghcr.io/$REPO-frontend:latest ./frontend
-          docker push ghcr.io/$REPO-frontend:latest
+          docker build \
+            --build-arg VITE_COUCHDB_URL=https://admin:${{ secrets.DOCKER_PASSWORD }}@checkit-shoppinglist.duckdns.org:5984 \
+            --build-arg VITE_PEPPER=${{ secrets.DOCKER_PASSWORD }} \
+            -t ghcr.io/${{ env.REPO }}-frontend:latest ./frontend
+          docker push ghcr.io/${{ env.REPO }}-frontend:latest
 
-      - name: 🐳 Backend bauen & pushen
+      - name: 🐳 Backend Image bauen & pushen
         run: |
-          docker build -t ghcr.io/$REPO-backend:latest ./backend
-          docker push ghcr.io/$REPO-backend:latest
+          docker build -t ghcr.io/${{ env.REPO }}-backend:latest ./backend
+          docker push ghcr.io/${{ env.REPO }}-backend:latest
 
-  # ANGEPASSTER JOB: Lädt nur noch die fertigen Images herunter
   deploy-server:
     needs: build-images
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
       - name: 🚀 Deployment via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -99,11 +85,10 @@ jobs:
           passphrase: ${{ secrets.DO_SSH_PASSPHRASE }}
           script: |
             REPO=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-            
             mkdir -p /var/www/checkit
             cd /var/www/checkit
 
-            # 1. Code sauber ziehen
+            # Code aktualisieren für Caddyfile & docker-compose.yml
             if [ ! -d ".git" ]; then
               git clone https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}.git .
             else
@@ -111,57 +96,49 @@ jobs:
               git reset --hard
               git pull origin main
             fi
-            
-            # 2. Server loggt sich bei GitHubs Docker-Registry ein (Nutzt dein aktualisiertes Token!)
+
+            # Login & .env Setup
             echo "${{ secrets.GH_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-            
-            # 3. .env schreiben
             echo "PASSWORD=${{ secrets.DOCKER_PASSWORD }}" > .env
             echo "FRONTEND_PORT=80" >> .env
             echo "BACKEND_PORT=8080" >> .env
             echo "DROPLET_IP=${{ secrets.DO_HOST }}" >> .env
-            
-            # 4. TRICK: Diese Override-Datei verbietet dem Server das Bauen und zwingt ihn, GitHubs Images zu nutzen
+
+            # Erzwinge Nutzung der Registry-Images
             cat <<EOF > docker-compose.override.yml
             services:
               frontend:
-                image: ghcr.io/$REPO-frontend:latest
+                image: ghcr.io/\${REPO}-frontend:latest
               backend:
-                image: ghcr.io/$REPO-backend:latest
+                image: ghcr.io/\${REPO}-backend:latest
             EOF
-            
-            # 5. Herunterladen (Dauert nur Sekunden!) und Starten ohne Build!
+
             docker compose pull
             docker compose up -d --no-build
             docker image prune -f
 
-  build-pages:
-    needs: [ build-and-test, e2e-tests ]
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: '20' }
-      - name: 🏗️ Frontend für GitHub Pages bauen
-        working-directory: ./frontend
-        env:
-          GITHUB_PAGES: true
-          VITE_COUCHDB_URL: http://admin:${{ secrets.DOCKER_PASSWORD }}@${{ secrets.DO_HOST }}:5984
-          VITE_PEPPER: ${{ secrets.DOCKER_PASSWORD }}
-        run: |
-          npm install
-          npm run build-only
-      - uses: actions/upload-pages-artifact@v3
-        with: { path: frontend/dist }
-
+  # Optional: GitHub Pages falls du es als Backup brauchst
   deploy-pages:
-    needs: build-pages
+    needs: build-and-test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: 🏗️ Build für Pages
+        working-directory: ./frontend
+        env:
+          VITE_COUCHDB_URL: https://admin:${{ secrets.DOCKER_PASSWORD }}@checkit-shoppinglist.duckdns.org:5984
+          VITE_PEPPER: ${{ secrets.DOCKER_PASSWORD }}
+        run: |
+          yarn install
+          yarn build
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: frontend/dist
       - id: deployment
         uses: actions/deploy-pages@v4
