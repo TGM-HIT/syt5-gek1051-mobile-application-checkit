@@ -87,11 +87,13 @@ jobs:
             cd /var/www/checkit
             
             if [ ! -d ".git" ]; then
-              git clone https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}.git .
+              git clone -b dev https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}.git .
             else
               git remote set-url origin https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}.git
               git reset --hard
-              git pull origin dev
+              git clean -fd
+              git fetch --all
+              git checkout -B dev origin/dev
             fi
             
             echo "${{ secrets.GH_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
