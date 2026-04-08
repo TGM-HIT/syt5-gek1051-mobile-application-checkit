@@ -59,12 +59,13 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 🐳 Frontend Image bauen & pushen (mit HTTPS URL!)
+      - name: 🐳 Frontend Image bauen & pushen (mit Vite ENV Trick)
         run: |
-          docker build \
-            --build-arg VITE_COUCHDB_URL=https://admin:${{ secrets.DOCKER_PASSWORD }}@checkit-shoppinglist.duckdns.org:5984 \
-            --build-arg VITE_PEPPER=${{ secrets.DOCKER_PASSWORD }} \
-            -t ghcr.io/${{ env.REPO }}-frontend:latest ./frontend
+          # DER TRICK: Wir schreiben die Variablen direkt in eine Datei, die Vite automatisch beim Build liest!
+          echo "VITE_COUCHDB_URL=https://admin:${{ secrets.DOCKER_PASSWORD }}@checkit-shoppinglist.duckdns.org:5984" > frontend/.env.production
+          echo "VITE_PEPPER=${{ secrets.DOCKER_PASSWORD }}" >> frontend/.env.production
+          
+          docker build -t ghcr.io/${{ env.REPO }}-frontend:latest ./frontend
           docker push ghcr.io/${{ env.REPO }}-frontend:latest
 
       - name: 🐳 Backend Image bauen & pushen
@@ -97,14 +98,14 @@ jobs:
               git pull origin main
             fi
 
-            # Login & .env Setup
+            # Login & .env Setup auf dem Server
             echo "${{ secrets.GH_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
             echo "PASSWORD=${{ secrets.DOCKER_PASSWORD }}" > .env
             echo "FRONTEND_PORT=80" >> .env
             echo "BACKEND_PORT=8080" >> .env
             echo "DROPLET_IP=${{ secrets.DO_HOST }}" >> .env
 
-            # Erzwinge Nutzung der Registry-Images
+            # Erzwinge Nutzung der Registry-Images ohne lokalen Build
             cat <<EOF > docker-compose.override.yml
             services:
               frontend:
@@ -117,7 +118,7 @@ jobs:
             docker compose up -d --no-build
             docker image prune -f
 
-  # Optional: GitHub Pages falls du es als Backup brauchst
+  # Optional: GitHub Pages, falls du es weiterhin als Backup brauchst
   deploy-pages:
     needs: build-and-test
     runs-on: ubuntu-latest
