@@ -623,7 +623,7 @@ const fetchItems = async () => {
       if (!localAnonLists.some((l: any) => l.hash === listHash.value)) {
         accessDenied.value = true;
         currentListName.value = 'Zugriff verweigert';
-        listOwner.value = null;
+        listOwner.value = undefined;
         isLoading.value = false;
         return;
       }
