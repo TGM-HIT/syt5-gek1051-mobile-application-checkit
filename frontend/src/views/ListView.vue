@@ -412,6 +412,7 @@ import { simulatedOffline, isOffline, lastSyncErrorMessage, listDb, createInvite
 import type { ListItem, ListMeta, ConflictResolution, ConflictVersionSnapshot } from '@/utils/types';
 import { currentUser } from '@/utils/auth';
 import PriceTagScanDialog from '@/components/PriceTagScanDialog.vue';
+import type { RecipeIngredient } from '@/utils/recipeScan';
 
 const route = useRoute();
 
@@ -796,9 +797,54 @@ const addItem = async () => {
   await saveItemsToDb(newItem.id);
 };
 
-const onScanned = (data: { name: string; preis: string }) => {
-  searchQuery.value  = data.name;
-  newItemPreis.value = data.preis;
+type ScanResult =
+  | { kind: 'priceTag'; name: string; preis: string }
+  | { kind: 'recipe'; ingredients: RecipeIngredient[] }
+  | { name: string; preis: string };
+
+const onScanned = async (data: ScanResult) => {
+  if ('kind' in data && data.kind === 'recipe') {
+    await applyRecipeIngredients(data.ingredients);
+    return;
+  }
+
+  const payload = 'kind' in data
+    ? { name: data.name, preis: data.preis }
+    : data;
+
+  searchQuery.value  = payload.name;
+  newItemPreis.value = payload.preis;
+};
+
+const applyRecipeIngredients = async (ingredients: RecipeIngredient[]) => {
+  if (!ingredients.length) {
+    showSnackbar('Keine Zutaten erkannt.', 'warning');
+    return;
+  }
+
+  if (!listDoc) await fetchItems();
+  if (!listDoc) return;
+
+  const now = new Date().toISOString();
+  const sortedIngredients = [...ingredients].sort((a, b) => a.orderIndex - b.orderIndex);
+
+  for (let i = 0; i < sortedIngredients.length; i++) {
+    const ingredient = sortedIngredients[i]!;
+    const name = ingredient.name.trim();
+    if (!name) continue;
+
+    shoppingList.value.push({
+      id: `${Date.now()}_${i}`,
+      name,
+      menge: ingredient.menge || '1',
+      done: false,
+      category: 'Sonstiges',
+      updatedAt: now,
+    });
+  }
+
+  await saveItemsToDb();
+  showSnackbar(`${sortedIngredients.length} Zutaten uebernommen.`, 'success');
 };
 
 const generateInvite = async () => {
