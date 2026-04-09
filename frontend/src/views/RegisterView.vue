@@ -76,7 +76,7 @@ const submit = async () => {
     return;
   }
   loading.value = true;
-  const result = register(username.value, password.value);
+  const result = await register(username.value, password.value);
   loading.value = false;
   if (!result.ok) {
     error.value = result.error ?? 'Registration failed.';

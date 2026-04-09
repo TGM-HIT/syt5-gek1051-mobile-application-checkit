@@ -62,7 +62,7 @@ const loading  = ref(false);
 const submit = async () => {
   error.value = '';
   loading.value = true;
-  const result = login(username.value, password.value);
+  const result = await login(username.value, password.value);
   loading.value = false;
   if (!result.ok) {
     error.value = result.error ?? 'Login failed.';

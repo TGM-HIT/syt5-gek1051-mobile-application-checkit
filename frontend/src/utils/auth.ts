@@ -1,9 +1,9 @@
 /**
  * auth.ts — simple frontend auth using localStorage for accounts and a cookie for the session.
- * Passwords are hashed with BLAKE2s-128 before storage.
+ * Passwords are hashed with bcrypt (cost 12) before storage.
  */
 
-import { blake2sHex } from 'blakejs';
+import bcrypt from 'bcryptjs';
 import { ref } from 'vue';
 
 const USERNAME_COOKIE = 'checkit_username';
@@ -30,7 +30,7 @@ function setUsernameCookie(name: string): void {
 }
 
 function clearUsernameCookie(): void {
-    document.cookie = `${USERNAME_COOKIE}=; max-age=0; path=/; SameSite=Lax`;
+    document.cookie = `${USERNAME_COOKIE}=; max-age=0; path=/`;
 }
 
 // ─── Account storage ──────────────────────────────────────────────────────────
@@ -47,36 +47,34 @@ function saveAccounts(accounts: Record<string, string>): void {
     localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
 }
 
-function hashPassword(password: string): string {
-    return blake2sHex(password, undefined, 16);
-}
-
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 export function isLoggedIn(): boolean {
     return !!getUsername();
 }
 
-export function register(username: string, password: string): { ok: boolean; error?: string } {
+export async function register(username: string, password: string): Promise<{ ok: boolean; error?: string }> {
     const trimmed = username.trim();
     if (!trimmed) return { ok: false, error: 'Username is required.' };
-    if (password.length < 4) return { ok: false, error: 'Password must be at least 4 characters.' };
+    if (password.length < 8) return { ok: false, error: 'Password must be at least 8 characters.' };
 
     const accounts = getAccounts();
     if (accounts[trimmed]) return { ok: false, error: 'Username already taken.' };
 
-    accounts[trimmed] = hashPassword(password);
+    accounts[trimmed] = await bcrypt.hash(password, 12);
     saveAccounts(accounts);
     setUsernameCookie(trimmed);
     currentUser.value = trimmed;
     return { ok: true };
 }
 
-export function login(username: string, password: string): { ok: boolean; error?: string } {
+export async function login(username: string, password: string): Promise<{ ok: boolean; error?: string }> {
     const trimmed = username.trim();
     const accounts = getAccounts();
     if (!accounts[trimmed]) return { ok: false, error: 'User not found.' };
-    if (accounts[trimmed] !== hashPassword(password)) return { ok: false, error: 'Wrong password.' };
+
+    const match = await bcrypt.compare(password, accounts[trimmed]);
+    if (!match) return { ok: false, error: 'Wrong password.' };
 
     setUsernameCookie(trimmed);
     currentUser.value = trimmed;
