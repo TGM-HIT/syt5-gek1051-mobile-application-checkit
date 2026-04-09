@@ -66,12 +66,11 @@ describe('CheckIT - Stories & User Flow', () => {
 
     cy.get('input').eq(0).clear().type('Apfel');
 
-    // Kategorie wählen (Vuetify Fix)
+    // Kategorie wählen (Kugelsicherer Vuetify 3 Fix)
     cy.get('.v-select').first().click({ force: true });
-    cy.wait(500); // Warten, bis die Vuetify-Animation fertig ist
-    
-    // Robuster Selektor für das Menü-Item
-    cy.get('.v-list-item').contains('Obst & Gemüse').click({ force: true });
+    cy.wait(500);
+    // Wir nehmen den allerletzten Eintrag im DOM, der 'Obst & Gemüse' heißt (das ist immer das offene Menü)
+    cy.contains('.v-list-item', 'Obst & Gemüse').last().click({ force: true });
 
     cy.get('input').eq(2).clear().type('5');
     cy.get('.mdi-plus').closest('button').click();
