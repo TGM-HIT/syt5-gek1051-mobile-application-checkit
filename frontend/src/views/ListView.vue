@@ -11,9 +11,6 @@
                 {{ currentListName }}
                 <v-chip v-if="listOwner === undefined && !isLoading && !accessDenied" size="small" color="secondary" variant="tonal" class="ml-2">Privat</v-chip>
               </h1>
-              <div class="text-caption text-grey mt-1 hash-label">
-                /list/{{ listHash }}
-              </div>
             </div>
 
             <v-btn
