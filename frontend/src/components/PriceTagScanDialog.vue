@@ -1,7 +1,19 @@
 <template>
-  <v-dialog :model-value="modelValue" max-width="500" persistent @update:model-value="$emit('update:modelValue', $event)">
-    <v-card title="Preisschild scannen">
+  <v-dialog :model-value="modelValue" max-width="560" persistent @update:model-value="$emit('update:modelValue', $event)">
+    <v-card :title="scanMode === 'recipe' ? 'Rezept scannen' : 'Preisschild scannen'">
       <v-card-text>
+        <v-btn-toggle
+          v-model="scanMode"
+          mandatory
+          divided
+          color="primary"
+          class="mb-4"
+          data-testid="scan-mode-toggle"
+        >
+          <v-btn value="price" prepend-icon="mdi-tag" data-testid="scan-mode-price">Preisschild</v-btn>
+          <v-btn value="recipe" prepend-icon="mdi-book-open-page-variant" data-testid="scan-mode-recipe">Rezept</v-btn>
+        </v-btn-toggle>
+
         <!-- Image source selection -->
         <div v-if="!imageUrl" class="d-flex flex-column align-center ga-3">
           <v-btn color="primary" variant="elevated" block @click="openCamera" prepend-icon="mdi-camera">
@@ -23,8 +35,29 @@
 
           <!-- Recognized fields -->
           <div v-if="!processing">
-            <v-text-field v-model="recognizedName" label="Artikelname" variant="outlined" density="comfortable" class="mb-3" />
-            <v-text-field v-model="recognizedPrice" label="Preis" variant="outlined" density="comfortable" prefix="€" />
+            <template v-if="scanMode === 'price'">
+              <v-text-field v-model="recognizedName" label="Artikelname" variant="outlined" density="comfortable" class="mb-3" />
+              <v-text-field v-model="recognizedPrice" label="Preis" variant="outlined" density="comfortable" prefix="EUR" />
+            </template>
+
+            <template v-else>
+              <v-alert type="info" variant="tonal" density="compact" class="mb-3">
+                Erkannte Zutaten werden in Rezept-Reihenfolge uebernommen.
+              </v-alert>
+              <v-list lines="one" density="compact" class="rounded border mb-2" data-testid="recipe-ingredient-list">
+                <v-list-item v-for="ingredient in orderedIngredients" :key="ingredient.orderIndex" data-testid="recipe-ingredient-row">
+                  <template #prepend>
+                    <v-chip size="x-small" class="mr-2">{{ ingredient.orderIndex }}</v-chip>
+                  </template>
+                  <v-list-item-title>{{ ingredient.name }}</v-list-item-title>
+                  <v-list-item-subtitle>Menge: {{ ingredient.menge }}</v-list-item-subtitle>
+                </v-list-item>
+                <v-list-item v-if="orderedIngredients.length === 0">
+                  <v-list-item-title>Keine Zutaten erkannt - bitte anderes Bild probieren.</v-list-item-title>
+                </v-list-item>
+              </v-list>
+            </template>
+
             <v-btn variant="text" size="small" class="mt-1" @click="resetImage">
               <v-icon start>mdi-refresh</v-icon> Anderes Bild wählen
             </v-btn>
@@ -35,7 +68,7 @@
       <v-card-actions>
         <v-spacer />
         <v-btn color="grey-darken-1" variant="text" @click="close">Abbrechen</v-btn>
-        <v-btn color="primary" variant="elevated" :disabled="processing || !imageUrl" @click="confirm">
+        <v-btn color="primary" variant="elevated" :disabled="!canConfirm" @click="confirm" data-testid="scan-confirm">
           Übernehmen
         </v-btn>
       </v-card-actions>
@@ -44,13 +77,24 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { createWorker } from 'tesseract.js';
+import { parseRecipeIngredients, type RecipeIngredient } from '@/utils/recipeScan';
+
+type ScanResult =
+  | { kind: 'priceTag'; name: string; preis: string }
+  | { kind: 'recipe'; ingredients: RecipeIngredient[] };
+
+type E2eScanOverride = {
+  priceTag?: { name: string; preis: string };
+  recipeText?: string;
+  recipeIngredients?: RecipeIngredient[];
+};
 
 const props = defineProps<{ modelValue: boolean }>();
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void;
-  (e: 'scanned', data: { name: string; preis: string }): void;
+  (e: 'scanned', data: ScanResult): void;
 }>();
 
 const cameraInput = ref<HTMLInputElement | null>(null);
@@ -59,8 +103,24 @@ const imageUrl = ref<string | null>(null);
 const processing = ref(false);
 const progress = ref(0);
 const statusText = ref('');
+const scanMode = ref<'price' | 'recipe'>('price');
 const recognizedName = ref('');
 const recognizedPrice = ref('');
+const recognizedIngredients = ref<RecipeIngredient[]>([]);
+
+const orderedIngredients = computed(() =>
+  [...recognizedIngredients.value].sort((a, b) => a.orderIndex - b.orderIndex)
+);
+
+const canConfirm = computed(() => {
+  if (processing.value || !imageUrl.value) return false;
+  if (scanMode.value === 'recipe') return orderedIngredients.value.length > 0;
+  return recognizedName.value.trim().length > 0;
+});
+
+function getE2eOverride(): E2eScanOverride | undefined {
+  return (window as unknown as { __CHECKIT_E2E_SCAN_OVERRIDE__?: E2eScanOverride }).__CHECKIT_E2E_SCAN_OVERRIDE__;
+}
 
 function openCamera() {
   cameraInput.value?.click();
@@ -82,6 +142,24 @@ function onFileSelected(event: Event) {
 }
 
 async function runOcr(image: string) {
+  const e2eOverride = getE2eOverride();
+  if (e2eOverride) {
+    if (scanMode.value === 'recipe') {
+      if (e2eOverride.recipeIngredients?.length) {
+        recognizedIngredients.value = e2eOverride.recipeIngredients;
+      } else {
+        parseRecipeText(e2eOverride.recipeText ?? '');
+      }
+    } else {
+      recognizedName.value = e2eOverride.priceTag?.name ?? recognizedName.value;
+      recognizedPrice.value = e2eOverride.priceTag?.preis ?? recognizedPrice.value;
+    }
+    processing.value = false;
+    progress.value = 100;
+    statusText.value = '';
+    return;
+  }
+
   processing.value = true;
   progress.value = 0;
   statusText.value = 'OCR wird initialisiert...';
@@ -99,7 +177,11 @@ async function runOcr(image: string) {
     const { data: { text } } = await worker.recognize(image);
     await worker.terminate();
 
-    parseOcrText(text);
+    if (scanMode.value === 'recipe') {
+      parseRecipeText(text);
+    } else {
+      parsePriceText(text);
+    }
   } catch (err) {
     console.error('OCR failed:', err);
     statusText.value = 'OCR fehlgeschlagen. Bitte manuell eingeben.';
@@ -108,7 +190,7 @@ async function runOcr(image: string) {
   }
 }
 
-function parseOcrText(text: string) {
+function parsePriceText(text: string) {
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
 
   // Try to find a price pattern (e.g. 1,99 or 1.99 or € 1,99)
@@ -136,10 +218,15 @@ function parseOcrText(text: string) {
   }
 }
 
+function parseRecipeText(text: string) {
+  recognizedIngredients.value = parseRecipeIngredients(text);
+}
+
 function resetImage() {
   imageUrl.value = null;
   recognizedName.value = '';
   recognizedPrice.value = '';
+  recognizedIngredients.value = [];
   progress.value = 0;
   if (cameraInput.value) cameraInput.value.value = '';
   if (galleryInput.value) galleryInput.value.value = '';
@@ -151,10 +238,18 @@ function close() {
 }
 
 function confirm() {
-  emit('scanned', {
-    name: recognizedName.value,
-    preis: recognizedPrice.value,
-  });
+  if (scanMode.value === 'recipe') {
+    emit('scanned', {
+      kind: 'recipe',
+      ingredients: orderedIngredients.value,
+    });
+  } else {
+    emit('scanned', {
+      kind: 'priceTag',
+      name: recognizedName.value,
+      preis: recognizedPrice.value,
+    });
+  }
   close();
 }
 </script>
