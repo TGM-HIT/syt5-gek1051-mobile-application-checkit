@@ -382,13 +382,22 @@ Ein Caddy-Server fungiert als Türsteher (Reverse Proxy) in einem eigenen Docker
 
 **Technische Umsetzung**
 
-Private Listen unterscheiden sich technisch durch ihre Synchronisations-Eigenschaften und Verschlüsselung:
+Private Listen unterscheiden sich technisch von geteilten Listen durch ein fehlendes owner-Attribut und eine strikte clientseitige Zugriffsprüfung:
 
-1. Lokal-Only Flag: Beim Erstellen der Liste kann das Flag isPrivate: true gesetzt werden. Ist dieses aktiv, wird für diese spezifische Liste der sync()-Prozess mit der Remote-CouchDB unterbunden. Die Daten verlassen niemals den lokalen IndexedDB-Speicher des Browsers.
+1. Lokale Registrierung (Der Schlüssel):
+Wird eine Liste als "Privat" erstellt (anonymer Modus), wird das PouchDB-Dokument ohne das Feld owner (bzw. owner: undefined) gespeichert. Gleichzeitig wird der generierte Hash der Liste zwingend in den localStorage des Erstellers unter dem Array-Key checkit_anon_lists geschrieben. Dieser lokale Eintrag fungiert als "Besitz-Zertifikat".
 
-2. Anonymität: Private Listen generieren keinen global aufrufbaren Einladungscode. Die Identifikation erfolgt über einen lokalen Zufalls-Hash, der nicht in der globalen checkit_lists-Datenbank registriert wird.
+2. Der "Remote Fallback"-Mechanismus:
+Da Listen-Hashes in der URL stehen, könnte ein Nutzer eine Liste aufrufen, die noch nicht im lokalen IndexedDB-Cache der PouchDB existiert. In diesem Fall greift die Funktion getListWithRemoteFallback. Sie fängt den 404-Fehler der lokalen Datenbank ab und fragt das Dokument direkt beim Remote-CouchDB-Server an.
 
-3. Verschlüsselung (Optional): Sensible Inhalte privater Listen können zusätzlich im localStorage mit einem nutzerdefinierten Pin verschlüsselt werden (AES-256 via crypto-js), bevor sie in der PouchDB abgelegt werden.
+3. Zugriffs-Barriere (Access Denied):
+Sobald ein Listendokument geladen wird (egal ob lokal oder via Fallback), prüft das Frontend in der Komponente (List.vue) das owner-Feld:
+   - Ist ein Owner gesetzt: Es handelt sich um eine normale, geteilte Liste. Der Zugriff wird gewährt.
+   - Ist KEIN Owner gesetzt (undefined): Es handelt sich um eine private Liste. Jetzt prüft die App, ob der Hash der Liste im lokalen checkit_anon_lists Array liegt.
+
+      - Hash vorhanden: Der Nutzer ist der Ersteller. Die Liste wird gerendert, erhält das Badge "Privat" und der Share-Button wird sicherheitshalber ausgeblendet.
+
+      - Hash NICHT vorhanden: Ein Fremder (anderes Gerät/anderer Browser) versucht, den Link zu öffnen. Das Frontend blockiert sofort das Rendering der Daten (accessDenied = true), versteckt alle Eingabefelder und zeigt stattdessen eine "Zugriff verweigert"-Fehlermeldung an. Die Artikel werden nicht angezeigt.
 
 ## Story 23 – Authentifizierung
 

@@ -7,16 +7,14 @@
           <div class="d-flex align-center mb-2">
             <div class="flex-grow-1 min-width-0">
               <h1 class="text-h5 text-sm-h4 font-weight-bold text-truncate">
+                <v-progress-circular v-if="isLoading" indeterminate size="24" class="mr-2" color="primary"></v-progress-circular>
                 {{ currentListName }}
-                <v-chip v-if="listOwner === undefined && !isLoading" size="small" color="secondary" variant="tonal" class="ml-2">Privat</v-chip>
+                <v-chip v-if="listOwner === undefined && !isLoading && !accessDenied" size="small" color="secondary" variant="tonal" class="ml-2">Privat</v-chip>
               </h1>
-              <div class="text-caption text-grey mt-1 hash-label">
-                /list/{{ listHash }}
-              </div>
             </div>
 
             <v-btn
-                v-if="hasConflict"
+                v-if="hasConflict && !accessDenied"
                 icon="mdi-alert"
                 color="warning"
                 variant="tonal"
@@ -27,7 +25,7 @@
             />
 
             <v-btn
-                v-if="debugMode"
+                v-if="debugMode && !accessDenied"
                 :color="effectivelyOffline ? 'error' : 'success'"
                 variant="tonal"
                 size="small"
@@ -37,12 +35,12 @@
               {{ effectivelyOffline ? 'Offline' : 'Online' }}
             </v-btn>
 
-            <v-btn v-if="listOwner !== undefined && !isLoading" variant="text" icon="mdi-share-variant" color="primary" @click="generateInvite" />
+            <v-btn v-if="listOwner !== undefined && !isLoading && !accessDenied" variant="text" icon="mdi-share-variant" color="primary" @click="generateInvite" />
             <v-btn to="/settings" variant="text" icon="mdi-cog" color="grey-darken-2" />
           </div>
 
           <v-alert
-              v-if="effectivelyOffline"
+              v-if="effectivelyOffline && !accessDenied"
               type="warning"
               variant="tonal"
               density="compact"
@@ -56,179 +54,185 @@
             <span v-else>Neue Änderungen werden lokal gespeichert.</span>
           </v-alert>
 
-          <v-row class="mb-4" dense>
-            <v-col cols="12" sm="6" md="3">
-              <v-text-field
-                  v-model="searchQuery"
-                  label="Artikel..."
-                  variant="outlined"
-                  density="comfortable"
-                  hide-details
-                  @keyup.enter="addItem"
-              ></v-text-field>
-            </v-col>
-            <v-col cols="6" sm="6" md="2">
-              <v-select
-                  v-model="selectedCategory"
-                  :items="PRODUCT_CATEGORIES"
-                  item-title="label"
-                  item-value="id"
-                  label="Kategorie"
-                  variant="outlined"
-                  density="comfortable"
-                  hide-details
-              >
-                <template v-slot:item="{ props, item }">
-                  <v-list-item v-bind="props" :prepend-icon="item.raw.icon"></v-list-item>
-                </template>
-              </v-select>
-            </v-col>
-            <v-col cols="3" sm="4" md="2">
-              <v-text-field
-                  v-model="newItemMenge"
-                  label="Menge"
-                  variant="outlined"
-                  density="comfortable"
-                  hide-details
-                  @keyup.enter="addItem"
-              ></v-text-field>
-            </v-col>
-            <v-col cols="3" sm="4" md="2">
-              <v-text-field
-                  v-model="newItemPreis"
-                  label="Preis (€)"
-                  variant="outlined"
-                  density="comfortable"
-                  hide-details
-                  @keyup.enter="addItem"
-              ></v-text-field>
-            </v-col>
-            <v-col cols="6" sm="2" md="1">
-              <v-btn color="primary" height="48" block elevation="1" @click="addItem">
-                <v-icon>mdi-plus</v-icon>
-              </v-btn>
-            </v-col>
-            <v-col cols="6" sm="2" md="2">
-              <v-btn color="secondary" height="48" block elevation="1" @click="scanDialog = true">
-                <v-icon start>mdi-camera</v-icon>
-                Scan
-              </v-btn>
-            </v-col>
-          </v-row>
-
-          <v-select
-              v-model="selectedFilterCategory"
-              :items="[{ id: null, label: 'Alle Kategorien' }, ...PRODUCT_CATEGORIES]"
-              item-title="label"
-              item-value="id"
-              label="Kategorie filtern"
-              variant="outlined"
-              density="comfortable"
-              hide-details
-              clearable
-              class="mb-4"
-              style="max-width: 250px;"
-          />
-
-          <v-divider class="mb-4"></v-divider>
-
-          <v-data-table
-              :headers="headers"
-              :items="listWithPreview"
-              :search="searchQuery"
-              class="elevation-0 d-none d-sm-block"
-              hide-default-footer
-          >
-            <template v-slot:[`item.done`]="{ item }">
-              <div @click.stop>
-                <input
-                    type="checkbox"
-                    v-model="item.done"
-                    style="width: 20px; height: 20px; cursor: pointer;"
-                    @change="toggleDone(item)"
-                >
-              </div>
-            </template>
-
-            <template v-slot:[`item.name`]="{ item }">
-              <span :class="{
-                'done-text': item.done,
-                'sync-error-text': item.syncError,
-                'sync-pending-text': !item.syncError && pendingItemIds.includes(String(item.id)),
-                'preview-text': item.id === '__preview__'
-              }">
-                {{ item.name }}
-                <v-icon v-if="item.syncError" color="error" size="small" title="Sync fehlgeschlagen">mdi-sync-alert</v-icon>
-                <v-icon v-else-if="pendingItemIds.includes(String(item.id))" color="warning" size="small" title="Ausstehende Synchronisierung">mdi-cloud-upload-outline</v-icon>
-              </span>
-            </template>
-
-            <template v-slot:[`item.preis`]="{ item }">
-              <span v-if="item.preis">€ {{ item.preis }}</span>
-            </template>
-
-            <template v-slot:[`item.updatedAt`]="{ item }">
-              <span class="text-caption text-grey">
-                {{ item.updatedAt ? formatTime(item.updatedAt) : '-' }}
-              </span>
-            </template>
-
-            <template v-slot:[`item.actions`]="{ item }">
-              <div class="d-flex justify-end">
-                <v-btn variant="text" color="blue-grey" class="mr-2" icon="mdi-pencil" size="small" @click="openEditDialog(item)" />
-                <v-btn variant="text" color="error" icon="mdi-delete" size="small" @click="removeItem(item.id)" />
-              </div>
-            </template>
-          </v-data-table>
-
-          <div class="d-sm-none">
-            <v-list v-if="shoppingList.length > 0" lines="two" class="pa-0">
-              <template v-for="(item, idx) in listWithPreview" :key="item.id">
-                <v-list-item :class="{ 'item-done': item.done }">
-                  <template v-slot:prepend>
-                    <input
-                        type="checkbox"
-                        v-model="item.done"
-                        style="width: 22px; height: 22px; cursor: pointer; margin-right: 12px;"
-                        @change="toggleDone(item)"
-                    >
-                  </template>
-
-                  <v-list-item-title :class="{
-                    'done-text':         item.done,
-                    'sync-error-text':   item.syncError,
-                    'sync-pending-text': !item.syncError && pendingItemIds.includes(String(item.id)),
-                    'preview-text': item.id === '__preview__'
-                  }">
-                    {{ item.name }}
-                    <v-icon v-if="item.syncError" color="error" size="x-small">mdi-sync-alert</v-icon>
-                    <v-icon v-else-if="pendingItemIds.includes(String(item.id))" color="warning" size="x-small">mdi-cloud-upload-outline</v-icon>
-                  </v-list-item-title>
-
-                  <v-list-item-subtitle>
-                    <v-chip size="x-small" variant="tonal" class="mr-1">{{ item.category }}</v-chip>
-                    <span class="text-caption">{{ item.menge }}</span>
-                    <span v-if="item.preis" class="text-caption ml-2 font-weight-bold">€ {{ item.preis }}</span>
-
-                    <div class="text-caption text-grey-darken-1 mt-1">
-                      <v-icon size="10" class="mr-1">mdi-clock-outline</v-icon>
-                      {{ item.updatedAt ? formatTime(item.updatedAt) : 'Neu' }}
-                    </div>
-                  </v-list-item-subtitle>
-
-                  <template v-slot:append>
-                    <v-btn variant="text" color="blue-grey" icon="mdi-pencil" size="x-small" density="comfortable" @click="openEditDialog(item)" />
-                    <v-btn variant="text" color="error" icon="mdi-delete" size="x-small" density="comfortable" @click="removeItem(item.id)" />
-                  </template>
-                </v-list-item>
-                <v-divider v-if="idx < listWithPreview.length - 1" />
-              </template>
-            </v-list>
-          </div>
-
-          <v-alert v-if="shoppingList.length === 0" type="info" variant="tonal" class="mt-4">
-            Die Liste ist leer.
+          <v-alert v-if="accessDenied" type="error" variant="tonal" class="mb-4 mt-4" icon="mdi-lock">
+            Dies ist eine private Liste. Du hast keine Berechtigung, darauf zuzugreifen.
           </v-alert>
+
+          <template v-else>
+            <v-row class="mb-4" dense>
+              <v-col cols="12" sm="6" md="3">
+                <v-text-field
+                    v-model="searchQuery"
+                    label="Artikel..."
+                    variant="outlined"
+                    density="comfortable"
+                    hide-details
+                    @keyup.enter="addItem"
+                ></v-text-field>
+              </v-col>
+              <v-col cols="6" sm="6" md="2">
+                <v-select
+                    v-model="selectedCategory"
+                    :items="PRODUCT_CATEGORIES"
+                    item-title="label"
+                    item-value="id"
+                    label="Kategorie"
+                    variant="outlined"
+                    density="comfortable"
+                    hide-details
+                >
+                  <template v-slot:item="{ props, item }">
+                    <v-list-item v-bind="props" :prepend-icon="item.raw.icon"></v-list-item>
+                  </template>
+                </v-select>
+              </v-col>
+              <v-col cols="3" sm="4" md="2">
+                <v-text-field
+                    v-model="newItemMenge"
+                    label="Menge"
+                    variant="outlined"
+                    density="comfortable"
+                    hide-details
+                    @keyup.enter="addItem"
+                ></v-text-field>
+              </v-col>
+              <v-col cols="3" sm="4" md="2">
+                <v-text-field
+                    v-model="newItemPreis"
+                    label="Preis (€)"
+                    variant="outlined"
+                    density="comfortable"
+                    hide-details
+                    @keyup.enter="addItem"
+                ></v-text-field>
+              </v-col>
+              <v-col cols="6" sm="2" md="1">
+                <v-btn color="primary" height="48" block elevation="1" @click="addItem">
+                  <v-icon>mdi-plus</v-icon>
+                </v-btn>
+              </v-col>
+              <v-col cols="6" sm="2" md="2">
+                <v-btn color="secondary" height="48" block elevation="1" @click="scanDialog = true">
+                  <v-icon start>mdi-camera</v-icon>
+                  Scan
+                </v-btn>
+              </v-col>
+            </v-row>
+
+            <v-select
+                v-model="selectedFilterCategory"
+                :items="[{ id: null, label: 'Alle Kategorien' }, ...PRODUCT_CATEGORIES]"
+                item-title="label"
+                item-value="id"
+                label="Kategorie filtern"
+                variant="outlined"
+                density="comfortable"
+                hide-details
+                clearable
+                class="mb-4"
+                style="max-width: 250px;"
+            />
+
+            <v-divider class="mb-4"></v-divider>
+
+            <v-data-table
+                :headers="headers"
+                :items="listWithPreview"
+                :search="searchQuery"
+                class="elevation-0 d-none d-sm-block"
+                hide-default-footer
+            >
+              <template v-slot:item.done="{ item }">
+                <div @click.stop v-if="item.id !== '__preview__'">
+                  <input
+                      type="checkbox"
+                      v-model="item.done"
+                      style="width: 20px; height: 20px; cursor: pointer;"
+                      @change="toggleDone(item)"
+                  >
+                </div>
+              </template>
+
+              <template v-slot:item.name="{ item }">
+                <span :class="{
+                  'done-text': item.done,
+                  'sync-error-text': item.syncError,
+                  'sync-pending-text': !item.syncError && pendingItemIds.includes(String(item.id)),
+                  'preview-text': item.id === '__preview__'
+                }">
+                  {{ item.name }}
+                  <v-icon v-if="item.syncError" color="error" size="small" title="Sync fehlgeschlagen">mdi-sync-alert</v-icon>
+                  <v-icon v-else-if="pendingItemIds.includes(String(item.id))" color="warning" size="small" title="Ausstehende Synchronisierung">mdi-cloud-upload-outline</v-icon>
+                </span>
+              </template>
+
+              <template v-slot:item.preis="{ item }">
+                <span v-if="item.preis">€ {{ item.preis }}</span>
+              </template>
+
+              <template v-slot:item.updatedAt="{ item }">
+                <span class="text-caption text-grey">
+                  {{ item.updatedAt ? formatTime(item.updatedAt) : '-' }}
+                </span>
+              </template>
+
+              <template v-slot:item.actions="{ item }">
+                <div class="d-flex justify-end" v-if="item.id !== '__preview__'">
+                  <v-btn variant="text" color="blue-grey" class="mr-2" icon="mdi-pencil" size="small" @click="openEditDialog(item)" />
+                  <v-btn variant="text" color="error" icon="mdi-delete" size="small" @click="removeItem(item.id)" />
+                </div>
+              </template>
+            </v-data-table>
+
+            <div class="d-sm-none">
+              <v-list v-if="listWithPreview.length > 0" lines="two" class="pa-0">
+                <template v-for="(item, idx) in listWithPreview" :key="item.id">
+                  <v-list-item :class="{ 'item-done': item.done }">
+                    <template v-slot:prepend v-if="item.id !== '__preview__'">
+                      <input
+                          type="checkbox"
+                          v-model="item.done"
+                          style="width: 22px; height: 22px; cursor: pointer; margin-right: 12px;"
+                          @change="toggleDone(item)"
+                      >
+                    </template>
+
+                    <v-list-item-title :class="{
+                      'done-text':         item.done,
+                      'sync-error-text':   item.syncError,
+                      'sync-pending-text': !item.syncError && pendingItemIds.includes(String(item.id)),
+                      'preview-text': item.id === '__preview__'
+                    }">
+                      {{ item.name }}
+                      <v-icon v-if="item.syncError" color="error" size="x-small">mdi-sync-alert</v-icon>
+                      <v-icon v-else-if="pendingItemIds.includes(String(item.id))" color="warning" size="x-small">mdi-cloud-upload-outline</v-icon>
+                    </v-list-item-title>
+
+                    <v-list-item-subtitle>
+                      <v-chip size="x-small" variant="tonal" class="mr-1">{{ item.category }}</v-chip>
+                      <span class="text-caption">{{ item.menge }}</span>
+                      <span v-if="item.preis" class="text-caption ml-2 font-weight-bold">€ {{ item.preis }}</span>
+
+                      <div class="text-caption text-grey-darken-1 mt-1">
+                        <v-icon size="10" class="mr-1">mdi-clock-outline</v-icon>
+                        {{ item.updatedAt ? formatTime(item.updatedAt) : 'Neu' }}
+                      </div>
+                    </v-list-item-subtitle>
+
+                    <template v-slot:append v-if="item.id !== '__preview__'">
+                      <v-btn variant="text" color="blue-grey" icon="mdi-pencil" size="x-small" density="comfortable" @click="openEditDialog(item)" />
+                      <v-btn variant="text" color="error" icon="mdi-delete" size="x-small" density="comfortable" @click="removeItem(item.id)" />
+                    </template>
+                  </v-list-item>
+                  <v-divider v-if="idx < listWithPreview.length - 1" />
+                </template>
+              </v-list>
+            </div>
+
+            <v-alert v-if="shoppingList.length === 0" type="info" variant="tonal" class="mt-4">
+              Die Liste ist leer.
+            </v-alert>
+          </template>
         </v-card>
       </v-col>
     </v-row>
@@ -447,6 +451,7 @@ const listOwner = ref<string | undefined>(undefined);
 let changeListener: any = null;
 
 const isLoading = ref(false);
+const accessDenied = ref(false);
 const pendingItemIds = ref<string[]>([]);
 const pendingCount   = computed(() => pendingItemIds.value.length);
 
@@ -529,6 +534,17 @@ onMounted(async () => {
     if (change.id !== listHash.value || !change.doc) return;
 
     const doc = change.doc as ExtendedListMeta;
+
+    if (doc.owner === undefined) {
+      let localAnonLists = [];
+      try { localAnonLists = JSON.parse(localStorage.getItem('checkit_anon_lists') || '[]'); } catch { }
+      if (!localAnonLists.some((l: any) => l.hash === listHash.value)) {
+        accessDenied.value = true;
+        currentListName.value = 'Zugriff verweigert';
+        return;
+      }
+    }
+
     listDoc = doc;
     currentListName.value = doc.name;
     listOwner.value = doc.owner;
@@ -576,8 +592,8 @@ const previewItem = computed<ListItem | null>(() => {
 
 const listWithPreview = computed(() => {
   const base = selectedFilterCategory.value
-    ? shoppingList.value.filter(i => i.category === selectedFilterCategory.value)
-    : shoppingList.value;
+      ? shoppingList.value.filter(i => i.category === selectedFilterCategory.value)
+      : shoppingList.value;
   if (!previewItem.value) return base;
   return [...base, previewItem.value];
 });
@@ -594,8 +610,22 @@ const headers = [
 
 const fetchItems = async () => {
   isLoading.value = true;
+  accessDenied.value = false;
   try {
     const doc = await getListWithRemoteFallback(listHash.value) as ExtendedListMeta;
+
+    if (doc.owner === undefined) {
+      let localAnonLists = [];
+      try { localAnonLists = JSON.parse(localStorage.getItem('checkit_anon_lists') || '[]'); } catch { }
+      if (!localAnonLists.some((l: any) => l.hash === listHash.value)) {
+        accessDenied.value = true;
+        currentListName.value = 'Zugriff verweigert';
+        listOwner.value = undefined;
+        isLoading.value = false;
+        return;
+      }
+    }
+
     listDoc = doc;
     currentListName.value = doc.name;
     listOwner.value = doc.owner;
@@ -716,7 +746,7 @@ const applyConflictResolution = async (index: number) => {
 
   for (const rev of pendingConflictRevs) {
     try { await (listDb as any).remove(listHash.value, rev); }
-    catch (e) { console.warn('[conflict] failed to remove rev', rev, e); }
+    catch (e) { console.warn('[conflict] failed to remove rev', e); }
   }
 
   const resolvedAt  = new Date().toISOString();
@@ -766,8 +796,8 @@ const addItem = async () => {
   if (!listDoc) return;
 
   const existing = shoppingList.value.find(
-    i => i.name.toLowerCase() === searchQuery.value.toLowerCase()
-    && i.category === (selectedCategory.value || 'Sonstiges')
+      i => i.name.toLowerCase() === searchQuery.value.toLowerCase()
+          && i.category === (selectedCategory.value || 'Sonstiges')
   );
 
   if (existing) {
@@ -798,9 +828,9 @@ const addItem = async () => {
 };
 
 type ScanResult =
-  | { kind: 'priceTag'; name: string; preis: string }
-  | { kind: 'recipe'; ingredients: RecipeIngredient[] }
-  | { name: string; preis: string };
+    | { kind: 'priceTag'; name: string; preis: string }
+    | { kind: 'recipe'; ingredients: RecipeIngredient[] }
+    | { name: string; preis: string };
 
 const onScanned = async (data: ScanResult) => {
   if ('kind' in data && data.kind === 'recipe') {
@@ -809,8 +839,8 @@ const onScanned = async (data: ScanResult) => {
   }
 
   const payload = 'kind' in data
-    ? { name: data.name, preis: data.preis }
-    : data;
+      ? { name: data.name, preis: data.preis }
+      : data;
 
   searchQuery.value  = payload.name;
   newItemPreis.value = payload.preis;
@@ -939,5 +969,8 @@ input[type="checkbox"] {
   background: rgba(var(--v-theme-primary), 0.08);
   text-align: center;
   word-break: break-all;
+}
+.cursor-pointer {
+  cursor: pointer;
 }
 </style>

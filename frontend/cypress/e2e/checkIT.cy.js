@@ -1,9 +1,8 @@
 describe('CheckIT Einkaufs-App - User Flow', () => {
 
-  // Cypress anweisen, IDB-Errors beim Zerstören der Datenbank zu ignorieren
   Cypress.on('uncaught:exception', (err) => {
     if (err.message.includes("Failed to execute 'transaction' on 'IDBDatabase'")) {
-      return false; // Test nicht abbrechen
+      return false; 
     }
     return true; 
   });
@@ -29,11 +28,8 @@ describe('CheckIT Einkaufs-App - User Flow', () => {
 
     cy.url().should('match', /\/list\/[a-f0-9]+/);
     cy.contains('Die Liste ist leer.').should('be.visible');
-
-    // Kurze Pause, damit PouchDB die Liste initialisiert hat
     cy.wait(500);
 
-    // --- ARTIKEL HINZUFÜGEN ---
     cy.get('input').eq(0).type('Chips');
     cy.get('input').eq(2).type('3 Packungen');
     cy.get('.mdi-plus').closest('button').click();
@@ -41,7 +37,6 @@ describe('CheckIT Einkaufs-App - User Flow', () => {
     cy.contains('td', 'Chips', { timeout: 10000 }).should('be.visible');
     cy.contains('td', '3 Packungen').should('be.visible');
 
-    // --- ARTIKEL LÖSCHEN ---
     cy.get('.mdi-delete').first().closest('button').click();
     cy.contains('Die Liste ist leer.', { timeout: 10000 }).should('be.visible');
   });
@@ -55,15 +50,9 @@ describe('CheckIT Einkaufs-App - User Flow', () => {
     cy.get('.mdi-cog').closest('a').click();
     cy.contains('Einstellungen').should('be.visible');
 
-    // Cache leeren Button klicken
     cy.contains('Leeren').click();
-    
-    // Anstatt darauf zu warten, dass der harte Browser-Reload Cypress
-    // abhängt, weisen wir Cypress an, zur Startseite zu navigieren.
-    // Das simuliert das Ergebnis von hardReset() sicher für Cypress.
     cy.visit('/');
     
-    // Prüfen, ob wir wirklich wieder auf der leeren Startseite sind
     cy.contains('Geteilte Liste erstellen').should('be.visible');
   });
 
@@ -77,12 +66,11 @@ describe('CheckIT Einkaufs-App - User Flow', () => {
 
     cy.get('input').eq(0).clear().type('Apfel');
 
-    // Select öffnen (Vuetify Fix)
-    cy.get('.v-select').first().click({ force: true });
-    
-    // { force: true } ignoriert die Sichtbarkeitsprüfung während 
-    // der Vuetify-Dropdown-Animation und klickt das Element im DOM.
-    cy.get('.v-overlay-container').contains('Obst & Gemüse').first().click({ force: true });
+    // KUGELSICHERER VUETIFY FIX
+    cy.get('.v-select').first().find('.v-field').click({ force: true });
+    cy.wait(1000); 
+
+    cy.get('body').contains('Obst & Gemüse').last().click({ force: true });
 
     cy.get('input').eq(2).clear().type('5');
     cy.get('.mdi-plus').closest('button').click();
