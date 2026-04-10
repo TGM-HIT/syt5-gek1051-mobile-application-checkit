@@ -332,7 +332,7 @@
                   </v-card-subtitle>
                   <v-card-text class="flex-grow-1 pt-2">
                     <div
-                        v-for="item in v.items"
+                        v-for="item in getConflictItems(v.items, conflictResolutionInfo?.versions ?? [])"
                         :key="String(item.id)"
                         class="d-flex align-center mb-1"
                     >
@@ -342,8 +342,8 @@
                       <span class="text-body-2">{{ item.name }}</span>
                       <span class="text-caption text-grey ml-1">({{ item.menge }})</span>
                     </div>
-                    <div v-if="v.items.length === 0" class="text-caption text-grey font-italic">
-                      Keine Artikel
+                    <div v-if="getConflictItems(v.items, conflictResolutionInfo?.versions ?? []).length === 0" class="text-caption text-grey font-italic">
+                      Keine Unterschiede
                     </div>
                   </v-card-text>
                 </v-card>
@@ -376,7 +376,7 @@
                   </v-card-subtitle>
                   <v-card-text class="flex-grow-1 pt-2">
                     <div
-                        v-for="item in v.items"
+                        v-for="item in getConflictItems(v.items, conflictVersions)"
                         :key="String(item.id)"
                         class="d-flex align-center mb-1"
                     >
@@ -386,8 +386,8 @@
                       <span class="text-body-2">{{ item.name }}</span>
                       <span class="text-caption text-grey ml-1">({{ item.menge }})</span>
                     </div>
-                    <div v-if="v.items.length === 0" class="text-caption text-grey font-italic">
-                      Keine Artikel
+                    <div v-if="getConflictItems(v.items, conflictVersions).length === 0" class="text-caption text-grey font-italic">
+                      Keine Unterschiede
                     </div>
                   </v-card-text>
                   <v-card-actions>
@@ -501,6 +501,41 @@ interface ConflictVersion {
   label:   string;
   savedAt: string | null;
   savedBy: string | null;
+}
+
+function itemSignature(item: ListItem) {
+  return JSON.stringify({
+    name: item.name,
+    menge: item.menge,
+    done: item.done,
+    category: item.category,
+    preis: item.preis ?? null,
+  });
+}
+
+function getConflictItems(items: ListItem[], versions: Array<{ items: ListItem[] }>) {
+  if (!versions.length) return items;
+
+  const allItemIds = new Set<string>();
+  for (const version of versions) {
+    for (const item of version.items) {
+      allItemIds.add(String(item.id));
+    }
+  }
+
+  return items.filter((item) => {
+    const id = String(item.id);
+    if (!allItemIds.has(id)) return true;
+
+    const signatures = versions
+      .map((version) => version.items.find((other) => String(other.id) === id))
+      .filter((other): other is ListItem => Boolean(other))
+      .map(itemSignature);
+
+    if (signatures.length <= 1) return true;
+
+    return signatures.some((signature) => signature !== itemSignature(item));
+  });
 }
 
 const hasConflict             = ref(false);
@@ -967,28 +1002,20 @@ const saveEdit = async () => {
 input[type="checkbox"] {
   accent-color: #4caf50;
 }
-.hash-label {
-  font-family: monospace;
-  font-size: 0.75rem;
-  word-break: break-all;
-}
 .min-width-0 {
   min-width: 0;
 }
 .sync-error-text {
-  color: rgb(var(--v-theme-error)) !important;
+  color: #d32f2f !important;
 }
 .sync-pending-text {
-  color: rgb(var(--v-theme-warning)) !important;
+  color: #ed6c02 !important;
 }
 .invite-code-box {
   font-family: monospace;
   letter-spacing: 0.15em;
-  background: rgba(var(--v-theme-primary), 0.08);
+  background: rgba(25, 118, 210, 0.08);
   text-align: center;
   word-break: break-all;
-}
-.cursor-pointer {
-  cursor: pointer;
 }
 </style>
