@@ -552,15 +552,25 @@ onMounted(async () => {
     listOwner.value = doc.owner;
     shoppingList.value = doc.items || [];
 
+    // HOT RELOAD LOGIK: Hier prüfen wir in Echtzeit, ob sich der Konflikt-Zustand geändert hat
     if (doc._conflicts && doc._conflicts.length > 0) {
       hasConflict.value = true;
+      if (conflictDialog.value) {
+        openConflictDialog(); // Refresh Dialog, falls jemand anderes ihn offen hat und ein neuer Konflikt entsteht
+      }
     } else if (
         doc.conflictResolution &&
         !acknowledgedResolutionTimes.has(doc.conflictResolution.resolvedAt)
     ) {
       hasConflict.value = true;
+      if (conflictDialog.value) {
+        openConflictDialog(); // HOT RELOAD: Dialog wechselt sofort zum "Wurde gelöst"-Fenster mit "OK" Button!
+      }
     } else {
       hasConflict.value = false;
+      if (conflictDialog.value) {
+        conflictDialog.value = false; // Dialog automatisch schließen, wenn alles erledigt ist
+      }
     }
   });
 });
@@ -693,6 +703,7 @@ const openConflictDialog = async () => {
       conflictVersions.value        = [];
     } else {
       hasConflict.value = false;
+      conflictDialog.value = false; // Zur Sicherheit Dialog schließen
       return;
     }
     conflictDialog.value = true;
@@ -711,6 +722,7 @@ const openConflictDialog = async () => {
       try { await (listDb as any).remove(listHash.value, rev); } catch { }
     }
     hasConflict.value = false;
+    conflictDialog.value = false;
     return;
   }
 
