@@ -6,6 +6,12 @@ import type { ListItem, ListMeta, GlobalStats } from './types';
 const statsDb = new PouchDB('checkit_stats');
 export const listDb = new PouchDB('checkit_lists');
 
+// Expose db for Cypress e2e tests
+if ((window as any).Cypress) {
+    (window as any).__listDb  = listDb;
+    (window as any).__PouchDB = PouchDB;
+}
+
 const COUCHDB_URL = import.meta.env.VITE_COUCHDB_URL ?? '';
 
 export const couchDbStatus = ref<'connecting' | 'active' | 'paused' | 'error' | 'disabled'>(

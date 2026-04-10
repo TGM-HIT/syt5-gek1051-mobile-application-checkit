@@ -21,6 +21,7 @@
                 size="small"
                 class="mr-2"
                 title="Synchronisierungskonflikt – klicken zum Lösen"
+                data-testid="conflict-btn"
                 @click="openConflictDialog"
             />
 
@@ -410,7 +411,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 import { simulatedOffline, isOffline, lastSyncErrorMessage, listDb, createInviteCode, toggleOffline, getListWithRemoteFallback } from '@/utils/listHash';
 import type { ListItem, ListMeta, ConflictResolution, ConflictVersionSnapshot } from '@/utils/types';
@@ -503,6 +504,7 @@ interface ConflictVersion {
 }
 
 const hasConflict             = ref(false);
+if ((window as any).Cypress) (window as any).__hasConflict = hasConflict;
 const conflictDialog          = ref(false);
 const conflictAlreadyResolved = ref(false);
 const conflictResolutionInfo  = ref<ConflictResolution | null>(null);
@@ -650,6 +652,10 @@ const fetchItems = async () => {
     isLoading.value = false;
   }
 };
+if ((window as any).Cypress) {
+  (window as any).__fetchItems = fetchItems;
+  (window as any).__nextTick   = nextTick;
+}
 
 const saveItemsToDb = async (changedItemId?: string) => {
   if (!listDoc) return;
