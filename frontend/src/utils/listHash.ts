@@ -1,7 +1,6 @@
-import { blake2sHex } from 'blakejs';
 import PouchDB from 'pouchdb';
 import { ref } from 'vue';
-import type { ListItem, ListMeta, GlobalStats } from './types';
+import type { ListMeta, GlobalStats } from './types';
 
 const statsDb = new PouchDB('checkit_stats');
 export const listDb = new PouchDB('checkit_lists');
@@ -203,15 +202,26 @@ async function recordListForUser(username: string, hash: string, name: string): 
 }
 
 export async function createList(name: string, username?: string): Promise<{ hash: string; newCount: number }> {
-    const pepper = import.meta.env.VITE_PEPPER ?? '';
-    const currentCount = await getListsCreated();
-    const hash = blake2sHex(String(currentCount) + pepper, undefined, 16);
+    let hash = '';
+    let isUnique = false;
+    for (let attempt = 0; attempt < 10; attempt++) {
+        const bytes = new Uint8Array(16);
+        crypto.getRandomValues(bytes);
+        hash = Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
 
-    try {
-        await listDb.get<ListMeta>(hash);
-        return { hash, newCount: currentCount };
-    } catch (err: any) {
-        if (err.status !== 404) throw err;
+        try {
+            await listDb.get<ListMeta>(hash);
+        } catch (err: any) {
+            if (err.status === 404) {
+                isUnique = true;
+                break;
+            }
+            throw err;
+        }
+    }
+
+    if (!isUnique) {
+        throw new Error('Konnte keine eindeutige Listen-ID erzeugen.');
     }
 
     await listDb.put<ListMeta & { owner?: string }>({
