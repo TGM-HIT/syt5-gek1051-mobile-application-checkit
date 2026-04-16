@@ -16,14 +16,24 @@
 
         <!-- Image source selection -->
         <div v-if="!imageUrl" class="d-flex flex-column align-center ga-3">
+          <v-alert
+            v-if="scanMode === 'recipe' && recipeCameraPending"
+            type="info"
+            variant="tonal"
+            density="compact"
+            class="w-100"
+          >
+            Foto aufgenommen. Bitte jetzt "Bild aus Galerie" waehlen,
+            damit das gespeicherte Bild fuer den Rezept-Scan verwendet wird.
+          </v-alert>
           <v-btn color="primary" variant="elevated" block @click="openCamera" prepend-icon="mdi-camera">
-            Kamera
+            {{ scanMode === 'recipe' ? 'Foto aufnehmen' : 'Kamera' }}
           </v-btn>
           <v-btn color="secondary" variant="elevated" block @click="openGallery" prepend-icon="mdi-image">
             Bild aus Galerie
           </v-btn>
-          <input ref="cameraInput" type="file" accept="image/*" capture="environment" style="display:none" @change="onFileSelected" />
-          <input ref="galleryInput" type="file" accept="image/*" style="display:none" @change="onFileSelected" />
+          <input ref="cameraInput" type="file" accept="image/*" capture="environment" style="display:none" @change="onCameraFileSelected" />
+          <input ref="galleryInput" type="file" accept="image/*" style="display:none" @change="onGalleryFileSelected" />
         </div>
 
         <!-- Image preview + OCR -->
@@ -77,7 +87,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { createWorker } from 'tesseract.js';
 import { parseRecipeIngredients, type RecipeIngredient } from '@/utils/recipeScan';
 
@@ -100,6 +110,7 @@ const emit = defineEmits<{
 const cameraInput = ref<HTMLInputElement | null>(null);
 const galleryInput = ref<HTMLInputElement | null>(null);
 const imageUrl = ref<string | null>(null);
+const recipeCameraPending = ref(false);
 const processing = ref(false);
 const progress = ref(0);
 const statusText = ref('');
@@ -122,6 +133,10 @@ function getE2eOverride(): E2eScanOverride | undefined {
   return (window as unknown as { __CHECKIT_E2E_SCAN_OVERRIDE__?: E2eScanOverride }).__CHECKIT_E2E_SCAN_OVERRIDE__;
 }
 
+watch(scanMode, () => {
+  recipeCameraPending.value = false;
+});
+
 function openCamera() {
   cameraInput.value?.click();
 }
@@ -130,15 +145,35 @@ function openGallery() {
   galleryInput.value?.click();
 }
 
-function onFileSelected(event: Event) {
-  const file = (event.target as HTMLInputElement).files?.[0];
-  if (!file) return;
+function readFileAndRunOcr(file: File) {
   const reader = new FileReader();
   reader.onload = (e) => {
     imageUrl.value = e.target?.result as string;
     runOcr(imageUrl.value);
   };
   reader.readAsDataURL(file);
+}
+
+function onCameraFileSelected(event: Event) {
+  const file = (event.target as HTMLInputElement).files?.[0];
+  if (!file) return;
+
+  if (scanMode.value === 'recipe') {
+    // Fuer Rezept-Scan wird nur ein Galeriebild verarbeitet.
+    recipeCameraPending.value = true;
+    if (cameraInput.value) cameraInput.value.value = '';
+    return;
+  }
+
+  readFileAndRunOcr(file);
+}
+
+function onGalleryFileSelected(event: Event) {
+  const file = (event.target as HTMLInputElement).files?.[0];
+  if (!file) return;
+
+  recipeCameraPending.value = false;
+  readFileAndRunOcr(file);
 }
 
 async function runOcr(image: string) {
@@ -224,6 +259,7 @@ function parseRecipeText(text: string) {
 
 function resetImage() {
   imageUrl.value = null;
+  recipeCameraPending.value = false;
   recognizedName.value = '';
   recognizedPrice.value = '';
   recognizedIngredients.value = [];
@@ -253,3 +289,4 @@ function confirm() {
   close();
 }
 </script>
+
