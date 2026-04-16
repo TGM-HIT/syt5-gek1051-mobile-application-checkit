@@ -36,6 +36,7 @@
               {{ effectivelyOffline ? 'Offline' : 'Online' }}
             </v-btn>
 
+            <v-btn v-if="!isLoading && !accessDenied" variant="text" :icon="isPinned ? 'mdi-pin' : 'mdi-pin-outline'" :color="isPinned ? 'warning' : 'grey-darken-2'" :title="isPinned ? 'Liste losgelöst' : 'Liste angeheftet'" @click="pinList" />
             <v-btn v-if="listOwner !== undefined && !isLoading && !accessDenied" variant="text" icon="mdi-share-variant" color="primary" @click="generateInvite" />
             <v-btn to="/settings" variant="text" icon="mdi-cog" color="grey-darken-2" />
           </div>
@@ -413,7 +414,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
-import { simulatedOffline, isOffline, lastSyncErrorMessage, listDb, createInviteCode, toggleOffline, getListWithRemoteFallback } from '@/utils/listHash';
+import { simulatedOffline, isOffline, lastSyncErrorMessage, listDb, createInviteCode, toggleOffline, getListWithRemoteFallback, togglePinList, getPinState } from '@/utils/listHash';
 import type { ListItem, ListMeta, ConflictResolution, ConflictVersionSnapshot } from '@/utils/types';
 import { currentUser } from '@/utils/auth';
 import PriceTagScanDialog from '@/components/PriceTagScanDialog.vue';
@@ -453,6 +454,7 @@ let changeListener: any = null;
 
 const isLoading = ref(false);
 const accessDenied = ref(false);
+const isPinned = ref(false);
 const pendingItemIds = ref<string[]>([]);
 const pendingCount   = computed(() => pendingItemIds.value.length);
 
@@ -560,6 +562,7 @@ onMounted(async () => {
   } catch { }
 
   await fetchItems();
+  isPinned.value = await getPinState(listHash.value, currentUser.value ?? undefined);
 
   changeListener = listDb.changes({
     since: 'now',
@@ -933,6 +936,11 @@ const applyRecipeIngredients = async (ingredients: RecipeIngredient[]) => {
 const generateInvite = async () => {
   inviteCode.value   = await createInviteCode(listHash.value, listDoc?.name ?? '');
   inviteDialog.value = true;
+};
+
+const pinList = async () => {
+  isPinned.value = await togglePinList(listHash.value, currentUser.value ?? undefined);
+  showSnackbar(isPinned.value ? 'Liste angeheftet.' : 'Liste losgelöst.', 'success');
 };
 
 const shareLink = computed(() => {

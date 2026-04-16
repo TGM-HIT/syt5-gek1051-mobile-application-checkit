@@ -143,6 +143,7 @@ export interface UserListEntry {
     name: string;
     createdAt: string;
     owner?: string;
+    pinned?: boolean;
 }
 
 interface UserListsDoc {
@@ -316,4 +317,43 @@ export async function redeemInviteCode(code: string): Promise<{ listHash: string
 
     if (new Date(doc.expiresAt) < new Date()) return null;
     return { listHash: doc.listHash, listName: doc.listName };
+}
+
+export async function getPinState(hash: string, username?: string): Promise<boolean> {
+    if (!username) {
+        let lists: UserListEntry[] = [];
+        try { lists = JSON.parse(localStorage.getItem(LOCAL_ANON_LISTS_KEY) || '[]'); } catch { }
+        return lists.find(l => l.hash === hash)?.pinned ?? false;
+    }
+    try {
+        const doc = await listDb.get<UserListsDoc>(userListsId(username));
+        return doc.lists.find(l => l.hash === hash)?.pinned ?? false;
+    } catch {
+        return false;
+    }
+}
+
+export async function togglePinList(hash: string, username?: string): Promise<boolean> {
+    if (!username) {
+        let lists: UserListEntry[] = [];
+        try { lists = JSON.parse(localStorage.getItem(LOCAL_ANON_LISTS_KEY) || '[]'); } catch { }
+        const entry = lists.find(l => l.hash === hash);
+        if (!entry) return false;
+        entry.pinned = !entry.pinned;
+        localStorage.setItem(LOCAL_ANON_LISTS_KEY, JSON.stringify(lists));
+        return entry.pinned;
+    }
+    const id = userListsId(username);
+    let doc: UserListsDoc;
+    try {
+        doc = await listDb.get<UserListsDoc>(id);
+    } catch (err: any) {
+        if (err.status !== 404) throw err;
+        return false;
+    }
+    const entry = doc.lists.find(l => l.hash === hash);
+    if (!entry) return false;
+    entry.pinned = !entry.pinned;
+    await listDb.put(doc);
+    return entry.pinned;
 }

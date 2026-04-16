@@ -91,7 +91,35 @@
           </v-alert>
         </v-card>
 
-        <v-card v-if="userLists.length > 0" elevation="2" rounded="lg">
+        <v-card v-if="pinnedLists.length > 0" elevation="2" rounded="lg" class="mb-4">
+          <v-card-title class="pa-4 pb-0 d-flex align-center">
+            <v-icon start color="warning">mdi-pin</v-icon>
+            Angeheftet
+          </v-card-title>
+          <v-list lines="two">
+            <v-list-item
+                v-for="entry in pinnedLists"
+                :key="entry.hash"
+                :to="`/list/${entry.hash}`"
+                :title="entry.name"
+                :subtitle="formatDate(entry.createdAt)"
+            >
+              <template #prepend>
+                <v-avatar :color="entry.owner ? 'primary-lighten-4' : 'grey-lighten-3'">
+                  <v-icon :color="entry.owner ? 'primary' : 'grey-darken-1'">
+                    {{ entry.owner ? 'mdi-format-list-checks' : 'mdi-incognito' }}
+                  </v-icon>
+                </v-avatar>
+              </template>
+              <template #append>
+                <v-chip v-if="!entry.owner" size="x-small" color="secondary" variant="tonal" class="mr-2">Privat</v-chip>
+                <v-btn icon="mdi-pin-off" variant="text" size="small" color="warning" title="Losgelöst" @click.prevent="unpinFromHome(entry.hash)" />
+              </template>
+            </v-list-item>
+          </v-list>
+        </v-card>
+
+        <v-card v-if="regularLists.length > 0" elevation="2" rounded="lg">
           <v-card-title class="pa-4 pb-0 d-flex align-center">
             Deine Listen
             <v-spacer />
@@ -99,7 +127,7 @@
           </v-card-title>
           <v-list lines="two">
             <v-list-item
-                v-for="entry in userLists"
+                v-for="entry in regularLists"
                 :key="entry.hash"
                 :to="`/list/${entry.hash}`"
                 :title="entry.name"
@@ -128,7 +156,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { createList, getListsCreated, getUserLists, redeemInviteCode, type UserListEntry } from '@/utils/listHash';
+import { createList, getListsCreated, getUserLists, redeemInviteCode, togglePinList, type UserListEntry } from '@/utils/listHash';
 import { currentUser } from '@/utils/auth';
 
 const router    = useRouter();
@@ -152,6 +180,14 @@ const refreshLists = async () => {
   // getUserLists sollte so implementiert sein/werden, dass es
   // bei currentUser = null nur die lokalen (anonymen) Listen zurückgibt.
   userLists.value = await getUserLists(currentUser.value ?? undefined);
+};
+
+const pinnedLists  = computed(() => userLists.value.filter(l => l.pinned));
+const regularLists = computed(() => userLists.value.filter(l => !l.pinned));
+
+const unpinFromHome = async (hash: string) => {
+  await togglePinList(hash, currentUser.value ?? undefined);
+  await refreshLists();
 };
 
 const formatDate = (iso: string) =>
