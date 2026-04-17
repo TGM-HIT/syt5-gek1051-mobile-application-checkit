@@ -337,11 +337,17 @@ export async function togglePinList(hash: string, username?: string): Promise<bo
     if (!username) {
         let lists: UserListEntry[] = [];
         try { lists = JSON.parse(localStorage.getItem(LOCAL_ANON_LISTS_KEY) || '[]'); } catch { }
-        const entry = lists.find(l => l.hash === hash);
-        if (!entry) return false;
-        entry.pinned = !entry.pinned;
+        let entry = lists.find(l => l.hash === hash);
+        if (!entry) {
+            let name = hash;
+            try { name = (await listDb.get<ListMeta>(hash)).name; } catch { }
+            entry = { hash, name, createdAt: new Date().toISOString(), pinned: true };
+            lists.push(entry);
+        } else {
+            entry.pinned = !entry.pinned;
+        }
         localStorage.setItem(LOCAL_ANON_LISTS_KEY, JSON.stringify(lists));
-        return entry.pinned;
+        return entry.pinned ?? false;
     }
     const id = userListsId(username);
     let doc: UserListsDoc;
@@ -349,11 +355,17 @@ export async function togglePinList(hash: string, username?: string): Promise<bo
         doc = await listDb.get<UserListsDoc>(id);
     } catch (err: any) {
         if (err.status !== 404) throw err;
-        return false;
+        doc = { _id: id, lists: [] };
     }
-    const entry = doc.lists.find(l => l.hash === hash);
-    if (!entry) return false;
-    entry.pinned = !entry.pinned;
+    let entry = doc.lists.find(l => l.hash === hash);
+    if (!entry) {
+        let name = hash;
+        try { name = (await listDb.get<ListMeta>(hash)).name; } catch { }
+        entry = { hash, name, createdAt: new Date().toISOString(), owner: username, pinned: true };
+        doc.lists.push(entry);
+    } else {
+        entry.pinned = !entry.pinned;
+    }
     await listDb.put(doc);
-    return entry.pinned;
+    return entry.pinned ?? false;
 }
