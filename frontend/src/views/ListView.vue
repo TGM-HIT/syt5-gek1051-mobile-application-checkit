@@ -557,8 +557,8 @@ async function fetchCommonAncestor(hash: string, docs: (ListMeta & { _conflicts?
       }
     }
     if (chains.length < 2) return null;
-    const firstSet = new Set(chains[0]);
-    for (const rev of chains[1]) {
+    const firstSet = new Set(chains[0]!);
+    for (const rev of chains[1]!) {
       if (firstSet.has(rev)) {
         const isCommon = chains.slice(2).every(chain => chain.includes(rev));
         if (isCommon) {
@@ -607,7 +607,7 @@ function classifyItems(allDocs: ListMeta[], ancestor: ListMeta | null): { confli
       // Unchanged in all versions – skip
     } else if (changedDocs.length === 1) {
       // Only one version changed this item – auto-merge
-      const changedItem = (changedDocs[0].items ?? []).find(i => String(i.id) === id) ?? null;
+      const changedItem = (changedDocs[0]!.items ?? []).find(i => String(i.id) === id) ?? null;
       autoMerge.set(id, changedItem);
     } else {
       // Multiple versions changed this item – check if they agree
@@ -617,7 +617,7 @@ function classifyItems(allDocs: ListMeta[], ancestor: ListMeta | null): { confli
       }));
       if (changedSigs.size === 1) {
         // All changed to the same state – auto-merge
-        const changedItem = (changedDocs[0].items ?? []).find(i => String(i.id) === id) ?? null;
+        const changedItem = (changedDocs[0]!.items ?? []).find(i => String(i.id) === id) ?? null;
         autoMerge.set(id, changedItem);
       } else {
         conflictIds.add(id);
