@@ -377,7 +377,7 @@
                   </v-card-subtitle>
                   <v-card-text class="flex-grow-1 pt-2">
                     <div
-                        v-for="item in getConflictItems(v.items, conflictVersions)"
+                        v-for="item in getConflictItems(v.items, conflictVersions, pendingConflictIds)"
                         :key="String(item.id)"
                         class="d-flex align-center mb-1"
                     >
@@ -387,7 +387,7 @@
                       <span class="text-body-2">{{ item.name }}</span>
                       <span class="text-caption text-grey ml-1">({{ item.menge }})</span>
                     </div>
-                    <div v-if="getConflictItems(v.items, conflictVersions).length === 0" class="text-caption text-grey font-italic">
+                    <div v-if="getConflictItems(v.items, conflictVersions, pendingConflictIds).length === 0" class="text-caption text-grey font-italic">
                       Keine Unterschiede
                     </div>
                   </v-card-text>
@@ -515,7 +515,12 @@ function itemSignature(item: ListItem) {
   });
 }
 
-function getConflictItems(items: ListItem[], versions: Array<{ items: ListItem[] }>) {
+function getConflictItems(items: ListItem[], versions: Array<{ items: ListItem[] }>, conflictIds?: string[] | null) {
+  if (conflictIds != null) {
+    const idSet = new Set(conflictIds);
+    return items.filter(item => idSet.has(String(item.id)));
+  }
+
   if (!versions.length) return items;
 
   const allItemIds = new Set<string>();
@@ -540,6 +545,89 @@ function getConflictItems(items: ListItem[], versions: Array<{ items: ListItem[]
   });
 }
 
+async function fetchCommonAncestor(hash: string, docs: (ListMeta & { _conflicts?: string[] })[]): Promise<ListMeta | null> {
+  if (docs.length < 2) return null;
+  try {
+    const chains: string[][] = [];
+    for (const doc of docs) {
+      const withRevs = await (listDb as any).get(hash, { rev: doc._rev, revs: true }) as ListMeta & { _revisions?: { start: number; ids: string[] } };
+      if (withRevs._revisions) {
+        const { start, ids } = withRevs._revisions;
+        chains.push(ids.map((revId: string, i: number) => `${start - i}-${revId}`));
+      }
+    }
+    if (chains.length < 2) return null;
+    const firstSet = new Set(chains[0]);
+    for (const rev of chains[1]) {
+      if (firstSet.has(rev)) {
+        const isCommon = chains.slice(2).every(chain => chain.includes(rev));
+        if (isCommon) {
+          try { return await (listDb as any).get(hash, { rev }) as ListMeta; } catch { return null; }
+        }
+      }
+    }
+  } catch { }
+  return null;
+}
+
+function classifyItems(allDocs: ListMeta[], ancestor: ListMeta | null): { conflictIds: Set<string>; autoMerge: Map<string, ListItem | null> } {
+  const conflictIds = new Set<string>();
+  const autoMerge = new Map<string, ListItem | null>();
+
+  const allIds = new Set<string>();
+  for (const doc of allDocs) {
+    for (const item of doc.items ?? []) allIds.add(String(item.id));
+  }
+
+  if (!ancestor) {
+    // No ancestor available: mark all items differing between any versions as conflicts
+    for (const id of allIds) {
+      const sigs = new Set(allDocs.map(doc => {
+        const item = (doc.items ?? []).find(i => String(i.id) === id);
+        return item ? itemSignature(item) : '__deleted__';
+      }));
+      if (sigs.size > 1) conflictIds.add(id);
+    }
+    return { conflictIds, autoMerge };
+  }
+
+  const ancestorItems = ancestor.items ?? [];
+  for (const item of ancestorItems) allIds.add(String(item.id));
+
+  for (const id of allIds) {
+    const ancestorItem = ancestorItems.find(i => String(i.id) === id);
+    const ancestorSig = ancestorItem ? itemSignature(ancestorItem) : '__deleted__';
+
+    const changedDocs = allDocs.filter(doc => {
+      const item = (doc.items ?? []).find(i => String(i.id) === id);
+      return (item ? itemSignature(item) : '__deleted__') !== ancestorSig;
+    });
+
+    if (changedDocs.length === 0) {
+      // Unchanged in all versions – skip
+    } else if (changedDocs.length === 1) {
+      // Only one version changed this item – auto-merge
+      const changedItem = (changedDocs[0].items ?? []).find(i => String(i.id) === id) ?? null;
+      autoMerge.set(id, changedItem);
+    } else {
+      // Multiple versions changed this item – check if they agree
+      const changedSigs = new Set(changedDocs.map(doc => {
+        const item = (doc.items ?? []).find(i => String(i.id) === id);
+        return item ? itemSignature(item) : '__deleted__';
+      }));
+      if (changedSigs.size === 1) {
+        // All changed to the same state – auto-merge
+        const changedItem = (changedDocs[0].items ?? []).find(i => String(i.id) === id) ?? null;
+        autoMerge.set(id, changedItem);
+      } else {
+        conflictIds.add(id);
+      }
+    }
+  }
+
+  return { conflictIds, autoMerge };
+}
+
 const hasConflict             = ref(false);
 if ((window as any).Cypress) (window as any).__hasConflict = hasConflict;
 const conflictDialog          = ref(false);
@@ -554,6 +642,8 @@ const conflictDialogWidth = computed(() =>
 
 let pendingConflictRevs: string[] = [];
 let pendingWinningDoc: (ListMeta & { _conflicts?: string[] }) | null = null;
+let pendingMergeResult: { conflictIds: Set<string>; autoMerge: Map<string, ListItem | null> } | null = null;
+const pendingConflictIds = ref<string[] | null>(null);
 
 onMounted(async () => {
   try {
@@ -732,6 +822,9 @@ const saveItemsToDb = async (changedItemId?: string) => {
 };
 
 const openConflictDialog = async () => {
+  pendingConflictIds.value = null;
+  pendingMergeResult = null;
+
   const doc = await (listDb as any).get(listHash.value, { conflicts: true }) as ListMeta & { _conflicts?: string[] };
 
   if (!doc._conflicts || doc._conflicts.length === 0) {
@@ -777,6 +870,11 @@ const openConflictDialog = async () => {
     return { items: d.items ?? [], label, savedAt: d.savedAt ?? null, savedBy: d.savedBy ?? null };
   });
 
+  const ancestor = await fetchCommonAncestor(listHash.value, allDocs);
+  const mergeResult = classifyItems(allDocs, ancestor);
+  pendingMergeResult            = mergeResult;
+  pendingConflictIds.value      = [...mergeResult.conflictIds];
+
   pendingConflictRevs           = doc._conflicts;
   pendingWinningDoc             = doc;
   conflictVersions.value        = versions;
@@ -790,7 +888,22 @@ const applyConflictResolution = async (index: number) => {
   const chosen = conflictVersions.value[index];
   if (!chosen) return;
 
-  const chosenItems = [...chosen.items];
+  let finalItems = [...chosen.items];
+  if (pendingMergeResult) {
+    for (const [id, mergedItem] of pendingMergeResult.autoMerge) {
+      if (mergedItem === null) {
+        finalItems = finalItems.filter(i => String(i.id) !== id);
+      } else {
+        const idx = finalItems.findIndex(i => String(i.id) === id);
+        if (idx >= 0) {
+          finalItems[idx] = mergedItem;
+        } else {
+          finalItems.push(mergedItem);
+        }
+      }
+    }
+  }
+  const chosenItems = finalItems;
 
   const versionSnapshots: ConflictVersionSnapshot[] = conflictVersions.value.map((v, i) => ({
     label:   v.label,
