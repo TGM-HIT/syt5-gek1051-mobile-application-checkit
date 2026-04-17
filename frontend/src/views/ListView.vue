@@ -181,7 +181,7 @@
               <template v-slot:item.actions="{ item }">
                 <div class="d-flex justify-end" v-if="item.id !== '__preview__'">
                   <v-btn variant="text" color="blue-grey" class="mr-2" icon="mdi-pencil" size="small" @click="openEditDialog(item)" />
-                  <v-btn variant="text" color="error" icon="mdi-delete" size="small" @click="removeItem(item.id)" />
+                  <v-btn variant="text" color="error" icon="mdi-delete" size="small" @click="confirmDelete(item.id)" />
                 </div>
               </template>
             </v-data-table>
@@ -223,7 +223,7 @@
 
                     <template v-slot:append v-if="item.id !== '__preview__'">
                       <v-btn variant="text" color="blue-grey" icon="mdi-pencil" size="x-small" density="comfortable" @click="openEditDialog(item)" />
-                      <v-btn variant="text" color="error" icon="mdi-delete" size="x-small" density="comfortable" @click="removeItem(item.id)" />
+                      <v-btn variant="text" color="error" icon="mdi-delete" size="x-small" density="comfortable" @click="confirmDelete(item.id)" />
                     </template>
                   </v-list-item>
                   <v-divider v-if="idx < listWithPreview.length - 1" />
@@ -258,6 +258,17 @@
           <v-spacer></v-spacer>
           <v-btn color="grey-darken-1" variant="text" @click="editDialog = false">Abbrechen</v-btn>
           <v-btn color="primary" variant="elevated" @click="saveEdit">Speichern</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <v-dialog v-model="deleteDialog" max-width="360">
+      <v-card title="Artikel löschen">
+        <v-card-text>Willst du diesen Artikel wirklich löschen?</v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn color="grey-darken-1" variant="text" @click="deleteDialog = false">Abbrechen</v-btn>
+          <v-btn color="error" variant="elevated" @click="removeItem(deleteItemId); deleteDialog = false">Löschen</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -713,6 +724,8 @@ const newItemMenge = ref('');
 const newItemPreis = ref('');
 const shoppingList = ref<ListItem[]>([]);
 const editDialog   = ref(false);
+const deleteDialog = ref(false);
+const deleteItemId = ref<string>('');
 const scanDialog   = ref(false);
 const inviteDialog  = ref(false);
 const inviteCode    = ref('');
@@ -1085,6 +1098,11 @@ const toggleDone = async (item: ListItem) => {
   item.updatedAt = new Date().toISOString();
   await saveItemsToDb(item.id);
 };
+
+function confirmDelete(id: string) {
+  deleteItemId.value = id;
+  deleteDialog.value = true;
+}
 
 const removeItem = async (id: string) => {
   pendingItemIds.value = pendingItemIds.value.filter(p => p !== id);

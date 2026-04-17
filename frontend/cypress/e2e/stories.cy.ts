@@ -36,6 +36,7 @@ describe('CheckIT - Stories & User Flow', () => {
     cy.contains('td', 'Chips', { timeout: 10000 }).should('be.visible');
 
     cy.get('.mdi-delete').first().closest('button').click();
+    cy.contains('button', 'Löschen').click();
     cy.contains('Die Liste ist leer.', { timeout: 10000 }).should('be.visible');
   });
 

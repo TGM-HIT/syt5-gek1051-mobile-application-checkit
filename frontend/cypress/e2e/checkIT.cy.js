@@ -38,6 +38,7 @@ describe('CheckIT Einkaufs-App - User Flow', () => {
     cy.contains('td', '3 Packungen').should('be.visible');
 
     cy.get('.mdi-delete').first().closest('button').click();
+    cy.contains('button', 'Löschen').click();
     cy.contains('Die Liste ist leer.', { timeout: 10000 }).should('be.visible');
   });
 
