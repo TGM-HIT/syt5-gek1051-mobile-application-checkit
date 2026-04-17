@@ -36,7 +36,7 @@
               {{ effectivelyOffline ? 'Offline' : 'Online' }}
             </v-btn>
 
-            <v-btn v-if="!isLoading && !accessDenied" variant="text" :icon="isPinned ? 'mdi-pin' : 'mdi-pin-outline'" :color="isPinned ? 'warning' : 'grey-darken-2'" :title="isPinned ? 'Liste losgelöst' : 'Liste angeheftet'" @click="pinList" />
+            <v-btn v-if="listOwner !== undefined && !isLoading && !accessDenied" variant="text" :icon="isPinned ? 'mdi-pin' : 'mdi-pin-outline'" :color="isPinned ? 'warning' : 'grey-darken-2'" :title="isPinned ? 'Liste losgelöst' : 'Liste angeheftet'" @click="pinList" />
             <v-btn v-if="listOwner !== undefined && !isLoading && !accessDenied" variant="text" icon="mdi-share-variant" color="primary" @click="generateInvite" />
             <v-btn to="/settings" variant="text" icon="mdi-cog" color="grey-darken-2" />
           </div>
@@ -678,6 +678,7 @@ onMounted(async () => {
     listDoc = doc;
     currentListName.value = doc.name;
     listOwner.value = doc.owner;
+
     shoppingList.value = doc.items || [];
 
     // HOT RELOAD LOGIK: Hier prüfen wir in Echtzeit, ob sich der Konflikt-Zustand geändert hat
@@ -769,6 +770,7 @@ const fetchItems = async () => {
     listDoc = doc;
     currentListName.value = doc.name;
     listOwner.value = doc.owner;
+
     shoppingList.value = doc.items || [];
 
     if (doc._conflicts && doc._conflicts.length > 0) {
