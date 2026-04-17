@@ -324,6 +324,19 @@ Jedes ListItem-Objekt in der PouchDB verfügt über ein Pflichtfeld updatedAt: n
 
 > Als Benutzer möchte ich, dass gelöschte Artikel auch auf den Geräten meiner Partner verschwinden, um die Liste übersichtlich zu halten.
 
+### Technische Umsetzung
+
+Das Löschen erfolgt in `frontend/src/views/ListView.vue` über `removeItem(id)`:
+
+1. Der Artikel wird lokal aus `shoppingList` entfernt.
+2. Anschließend schreibt `saveItemsToDb()` den gesamten Listenstand zurück in `listDb` (PouchDB).
+3. Durch den aktiven Live-Sync (`listDb.sync(..., { live: true, retry: true })` in `frontend/src/utils/listHash.ts`) wird die neue Revision automatisch nach CouchDB repliziert.
+4. Andere Clients erhalten die Änderung über ihren `listDb.changes(...)`-Listener und laden die Liste neu (`fetchItems()`), wodurch der gelöschte Artikel dort ebenfalls verschwindet.
+
+### Verhalten bei Offline
+
+Wird ein Artikel offline gelöscht, bleibt die Änderung lokal erhalten und wird beim nächsten Online-Status automatisch synchronisiert. Dadurch verschwindet der Artikel zeitversetzt, aber zuverlässig auf allen verbundenen Geräten.
+
 ## Story 17 – Fehlermeldungen bei Synchronisationsfehlern
 
 *HEAD: JEIJ | Prio: SH | SP: 3*
@@ -373,6 +386,18 @@ Ein Caddy-Server fungiert als Türsteher (Reverse Proxy) in einem eigenen Docker
 *HEAD: BAYF | Prio: NH | SP: 5*
 
 > Als Benutzer möchte ich Artikel anhand von gescannten Rezepten hinzufügen können, damit ich mir die manuelle Arbeit erspare.
+
+### Technische Umsetzung
+
+Der Rezept-Import läuft über den Scan-Dialog `frontend/src/components/PriceTagScanDialog.vue` im Modus `recipe`:
+
+1. Nutzer wählt ein Bild (Kamera oder Galerie).
+2. Das Bild wird per `FileReader` geladen und an `runOcr(image)` übergeben.
+3. OCR erfolgt mit `tesseract.js` (`createWorker('deu')`), inklusive Fortschrittsanzeige.
+4. Der erkannte Text wird mit `parseRecipeIngredients(text)` aus `frontend/src/utils/recipeScan.ts` in strukturierte Zutaten umgewandelt (`name`, `menge`, `orderIndex`).
+5. Nach Bestätigung emittiert der Dialog `scanned` mit Payload:
+   ```typescript
+   { kind: 'recipe', ingredients: RecipeIngredient[] }
 
 ## Story 22 – Private Liste
 
